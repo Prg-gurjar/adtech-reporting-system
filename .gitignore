@@ -1,0 +1,68 @@
+# Frontend (React)
+/frontend/node_modules
+/frontend/build
+.env.local
+.env.*.local
+.DS_Store
+
+# Backend (Spring Boot)
+/backend/target/
+/backend/build/ # For Gradle projects
+.idea/           # IntelliJ IDEA files
+.vscode/         # VS Code files
+*.log
+*.jks
+*.bin
+*.jar
+*.war
+*.zip
+*.rar
+*.class
+# Database Specific (if not committed)
+*.mv.db  # H2 database files
+*.trace.db # H2 database files
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# Maven
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+
+# Gradle
+.gradle/
+build/
+.project
+.settings/
+bin/
+out/
+# Gradle user-home files
+.gradle/
+# Distribution specific
+*.zip
+*.tar
+*.tar.gz
+*.jar
+*.war
+*.ear
