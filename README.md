@@ -296,4 +296,5 @@ For the React frontend, you'll build static assets and serve them.
 Distributed under the MIT License. See `LICENSE` for more information. (You might want to create a `LICENSE` file in your root directory if you choose a specific license).
 
 #   a d t e c h - r e p o r t i n g - s y s t e m  
+ #   a d t e c h - r e p o r t i n g - s y s t e m  
  
