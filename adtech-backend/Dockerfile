@@ -10,16 +10,12 @@
 
     # Copy the source code
     COPY src ./src
+# Build the Spring Boot application and repackage it in a single Maven command
+# 'install' runs the 'package' phase, which creates the initial JAR.
+# 'spring-boot:repackage' then takes that JAR and makes it executable.
+# Running them in one command ensures the 'repackage' goal finds the 'source file'.
+RUN mvn clean install -DskipTests spring-boot:repackage
 
-    # Build the Spring Boot application
-    # -DskipTests: Skips running tests during the build
-    # -Dspring-boot.repackage.skip=true: Prevents Spring Boot from repackaging the JAR
-    #   We'll build the executable JAR in the next step to control its name.
-    RUN mvn clean install -DskipTests
-
-    # Build the final executable JAR using Spring Boot's repackage goal
-    # This creates the 'adtech-reportiningSystem-0.1.jar' in the target directory
-    RUN mvn spring-boot:repackage
 
     # Expose the port your Spring Boot application runs on (default 8080)
     # This corresponds to server.port in application.properties
