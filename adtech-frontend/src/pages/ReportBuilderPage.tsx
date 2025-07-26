@@ -1,50 +1,34 @@
 
-
 import React, { useEffect, useState, useCallback } from 'react';
-import { Typography, Button, Space, Select, Input, DatePicker, Spin, Card, Row, Col, message } from 'antd'; // <-- ADD 'message' here
-
-import DataTable from '../components/DataTable';
-import FilterPanel from '../components/FilterPanel'; // Ensure this is your updated DataTable
+import { Typography, Button, Space, Select, Input, DatePicker, Spin, Card, Row, Col, message } from 'antd';
+import DataTable from '../components/DataTable'; // Ensure this import is correct
 import {
   getDimensions, getMetrics, ReportQueryRequest, queryReport, AdReportData, exportReport
 } from '../api';
 import { debounce } from '../utils/debounce';
 import axios from 'axios';
-import dayjs from 'dayjs'; // Use dayjs for date handling
-import type { ColumnsType, TablePaginationConfig } from 'antd/es/table'; // Import TablePaginationConfig here
-import type { RangePickerProps } from 'antd/lib/date-picker'; // Import RangePickerProps
+import dayjs from 'dayjs';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { RangePickerProps } from 'antd/lib/date-picker';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
-// Define QueryParams to match your frontend state needs,
-// and ensure it maps to ReportQueryRequest when sent to API.
-export interface QueryParams {
-  mobileAppNames?: string[];
-  inventoryFormatNames?: string[];
-  operatingSystemVersionNames?: string[];
-  searchQuery?: string;
-  groupByDimensions?: string[];
-  metrics?: string[];
-  page: number;
-  pageSize: number;
-  startDate?: string;
-  endDate?: string;
-  sortBy?: string;
-  sortOrder?: 'ASC' | 'DESC';
-}
+// Define constants for page sizes
+const DEFAULT_PAGE_SIZE = 100; // Default page size when no search is active
+const SEARCH_PAGE_SIZE = 10000; // Page size when search is active
 
 export default function ReportBuilderPage() {
   const [availableDimensions, setAvailableDimensions] = useState<string[]>([]);
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
-  const [params, setParams] = useState<QueryParams>({
+  const [params, setParams] = useState<ReportQueryRequest>({
     groupByDimensions: [],
     metrics: [],
     page: 1,
-    pageSize: 10000,
-    startDate: dayjs().subtract(30, 'days').format('YYYY-MM-DD'), // Default to last 30 days
+    size: DEFAULT_PAGE_SIZE, // Initial default page size
+    startDate: dayjs().subtract(30, 'days').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     mobileAppNames: [],
     inventoryFormatNames: [],
@@ -54,30 +38,34 @@ export default function ReportBuilderPage() {
     sortOrder: undefined,
   });
   const [tableData, setTableData] = useState<AdReportData[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState<boolean>(false); // Add loading state
+  const [total, setTotal] = useState(0); // Actual total from backend
+  const [loading, setLoading] = useState<boolean>(false);
 
+  // --- API Calls for Dimensions and Metrics (run once) ---
   useEffect(() => {
     getDimensions()
-      .then((r) => setAvailableDimensions(r.data || []))
+      .then((r) => setAvailableDimensions(r || []))
       .catch((error) => {
         console.error("Error fetching dimensions:", error);
         setAvailableDimensions([]);
       });
     getMetrics()
-      .then((r) => setAvailableMetrics(r.data || []))
+      .then((r) => setAvailableMetrics(r || []))
       .catch((error) => {
         console.error("Error fetching metrics:", error);
         setAvailableMetrics([]);
       });
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
-  const fetchData = useCallback(debounce(async (currentParams: QueryParams) => {
-    setLoading(true); // Start loading
+  // --- Data Fetching Logic (debounced and memoized) ---
+  // This effect will re-run whenever params changes
+  const fetchData = useCallback(debounce(async (currentParams: ReportQueryRequest) => {
+    setLoading(true);
+    // Adjust the 'size' parameter based on whether a search query is active
     const apiParams: ReportQueryRequest = {
       ...currentParams,
       page: Math.max(1, currentParams.page || 1),
-      size: Math.max(1, currentParams.pageSize || 10),
+      size: currentParams.searchQuery ? SEARCH_PAGE_SIZE : currentParams.size, // Use 10000 for search, otherwise current size
       startDate: currentParams.startDate,
       endDate: currentParams.endDate,
     };
@@ -87,8 +75,8 @@ export default function ReportBuilderPage() {
 
     try {
       const resp = await queryReport(apiParams);
-      setTableData(resp.data.content || []);
-      setTotal(resp.data.totalElements || 0);
+      setTableData(resp.content || []); // CRITICAL: Update tableData with filtered content
+      setTotal(resp.totalElements || 0); // Always store the actual total
     } catch (error) {
       console.error("Error fetching report data:", error);
       if (axios.isAxiosError(error) && error.response) {
@@ -97,15 +85,16 @@ export default function ReportBuilderPage() {
       setTableData([]);
       setTotal(0);
     } finally {
-      setLoading(false); // Stop loading
+      setLoading(false);
     }
-  }, 500), []);
+  }, 500), []); // Debounce to prevent excessive API calls on rapid filter changes
 
+  // This useEffect triggers the data fetching whenever params changes
   useEffect(() => {
     fetchData(params);
-  }, [params, fetchData]);
+  }, [params, fetchData]); // CRITICAL: params is the dependency
 
-  // Handler for Date Range Filter
+  // --- Handlers for Filters and Table ---
   const handleDateRangeChange: RangePickerProps['onChange'] = (dates, dateStrings) => {
     setParams(prev => ({
       ...prev,
@@ -115,8 +104,7 @@ export default function ReportBuilderPage() {
     }));
   };
 
-  // Handler for Multi-Select Filters
-  const handleMultiSelectChange = (field: keyof QueryParams) => (values: string[]) => {
+  const handleMultiSelectChange = (field: keyof ReportQueryRequest) => (values: string[]) => {
     setParams(prev => ({
       ...prev,
       [field]: values,
@@ -124,16 +112,15 @@ export default function ReportBuilderPage() {
     }));
   };
 
-  // Handler for Real-time Search
   const handleSearch = (value: string) => {
     setParams(prev => ({
       ...prev,
-      searchQuery: value || undefined,
+      searchQuery: value || undefined, // Set to undefined if empty string
       page: 1, // Reset to first page on filter change
+      size: value ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE, // Adjust size based on search query presence
     }));
   };
 
-  // Handler for Dynamic Select (Dimensions/Metrics)
   const handleDynamicSelectChange = (field: 'groupByDimensions' | 'metrics') => (values: string[]) => {
     setParams(prev => ({
       ...prev,
@@ -142,14 +129,15 @@ export default function ReportBuilderPage() {
     }));
   };
 
-  // Handler for DataTable pagination and sorting changes
   const handleTableChange = (
     pagination: TablePaginationConfig,
     filters: any,
     sorter: any
   ) => {
     const newPage = Math.max(1, pagination.current || 1);
-    const newPageSize = Math.max(1, pagination.pageSize || 10);
+    // Allow page size up to SEARCH_PAGE_SIZE if search is active, otherwise cap at DEFAULT_PAGE_SIZE
+    const maxAllowedSize = params.searchQuery ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE;
+    const newSize = Math.min(Math.max(1, pagination.pageSize || 10), maxAllowedSize);
 
     let newSortBy: string | undefined = undefined;
     let newSortOrder: 'ASC' | 'DESC' | undefined = undefined;
@@ -159,43 +147,61 @@ export default function ReportBuilderPage() {
       newSortOrder = sorter.order === 'ascend' ? 'ASC' : 'DESC';
     }
 
-    setParams((oldParams: QueryParams) => ({
+    setParams((oldParams: ReportQueryRequest) => ({
       ...oldParams,
       page: newPage,
-      pageSize: newPageSize,
+      size: newSize,
       sortBy: newSortBy,
       sortOrder: newSortOrder,
     }));
   };
 
-  // Handler for Export CSV
   const handleExportCsv = () => {
     const exportRequest: ReportQueryRequest = {
       ...params,
-      size: total, // Export all records matching filters, not just current page
-      page: 1, // Ensure page is 1 for export all
+      // For export, we want all records matching the current filters, so use total
+      size: total > 0 ? total : 1, // Ensure size is at least 1 if total is 0
+      page: 1, // Always export from the first page
     };
     exportReport(exportRequest);
   };
 
   // --- Dynamic Column Generation for DataTable ---
-  // This logic is now in ReportBuilderPage, as DataTable is a generic component
   const generateColumns = (data: AdReportData[]): ColumnsType<AdReportData> => {
     if (data.length === 0) {
-      return [];
+      // If no data, return default columns or empty array
+      let keys: string[] = [];
+      if (params.groupByDimensions && params.groupByDimensions.length > 0) {
+        keys.push(...params.groupByDimensions);
+      } else {
+        keys.push(...getAvailableDimensions());
+      }
+      if (params.metrics && params.metrics.length > 0) {
+        keys.push(...params.metrics);
+      } else {
+        keys.push(...getAvailableMetrics());
+      }
+      keys = Array.from(new Set(keys)); // Remove duplicates
+
+      const emptyColumns = keys.filter(key => key !== 'id').map(key => ({
+        title: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
+        dataIndex: key,
+        key: key,
+      }));
+      return [{ title: 'S.No.', key: 'serialNumber', width: 70, fixed: 'left', render: (text, record, index) => index + 1 }, ...emptyColumns];
     }
 
     const allKeys = Object.keys(data[0]);
-    const displayKeys = allKeys.filter(key => key !== 'id'); // Filter out 'id' if not needed
+    const displayKeys = allKeys.filter(key => key !== 'id');
 
-    return displayKeys.map(key => ({
-      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()), // Convert camelCase to Title Case
+    const baseColumns = displayKeys.map(key => ({
+      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
       dataIndex: key,
       key: key,
-      sorter: true, // Enable sorting for all columns
+      sorter: true,
       render: (text: any) => {
         if (key === 'date') {
-          return dayjs(text).format('YYYY-MM-DD'); // Use dayjs for formatting
+          return dayjs(text).format('YYYY-MM-DD');
         }
         if (typeof text === 'number' && (key.toLowerCase().includes('ecpm') || key.toLowerCase().includes('payout') || key.toLowerCase().includes('ctr') || key.toLowerCase().includes('rate'))) {
           return text.toFixed(2);
@@ -203,9 +209,44 @@ export default function ReportBuilderPage() {
         return text;
       }
     }));
+
+    const serialNumberColumn: ColumnsType<AdReportData>[0] = {
+      title: 'S.No.',
+      key: 'serialNumber',
+      width: 70,
+      fixed: 'left',
+      render: (text, record, index) => (params.page - 1) * params.size + index + 1,
+    };
+
+    return [serialNumberColumn, ...baseColumns];
   };
 
-  const columns = React.useMemo(() => generateColumns(tableData), [tableData]);
+  // Memoize columns to prevent unnecessary re-renders
+  const columns = React.useMemo(() => generateColumns(tableData), [tableData, params.page, params.size, availableDimensions, availableMetrics]);
+
+  // Determine pageSizeOptions dynamically
+  const getPageSizeOptions = () => {
+    if (params.searchQuery) {
+      return ['10', '20', '50', '100', '1000', '10000']; // Include 10000 for search
+    } else {
+      return ['10', '20', '50', '100']; // Default options
+    }
+  };
+
+  // Determine the total for pagination dynamically
+  const getPaginationTotal = () => {
+    return total; // Showing actual total from backend
+  };
+
+  // Helper to get all available dimensions (static list for frontend UI)
+  const getAvailableDimensions = useCallback(() => {
+    return ["mobileAppResolvedId", "mobileAppName", "domain", "adUnitName", "adUnitId", "inventoryFormatName", "operatingSystemVersionName", "date"];
+  }, []);
+
+  // Helper to get all available metrics (static list for frontend UI)
+  const getAvailableMetrics = useCallback(() => {
+    return ["adExchangeTotalRequests", "adExchangeResponsesServed", "adExchangeMatchRate", "adExchangeLineItemLevelImpressions", "adExchangeLineItemLevelClicks", "adExchangeLineItemLevelCtr", "averageEcpm", "payout"];
+  }, []);
 
 
   return (
@@ -348,14 +389,16 @@ export default function ReportBuilderPage() {
       {/* Data Table */}
       <Card title="Report Data" style={{ marginBottom: '20px' }}>
         <Spin spinning={loading}>
-          <DataTable<AdReportData> // Specify generic type for DataTable
-            data={tableData}
-            total={total}
+          <DataTable<AdReportData>
+            data={tableData} // This should now correctly reflect filtered data
+            total={getPaginationTotal()}
             page={params.page}
-            pageSize={params.pageSize}
-            loading={loading} // Pass loading state
-            columns={columns} // Pass the dynamically generated columns
-            onChange={handleTableChange} // Pass the full handler
+            pageSize={params.size}
+            loading={loading}
+            columns={columns}
+            onChange={handleTableChange}
+            pageSizeOptions={getPageSizeOptions()}
+            showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
           />
         </Spin>
       </Card>

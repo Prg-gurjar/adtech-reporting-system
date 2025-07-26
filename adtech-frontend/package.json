@@ -2,7 +2,7 @@
   "name": "adtech-frontend",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://localhost:8086",
+  "proxy": "http://localhost:8091",
   "dependencies": {
     "@ant-design/charts": "^2.6.1",
     "@ant-design/icons": "^6.0.0",
