@@ -60,10 +60,11 @@
 			<optional>true</optional>
 		</dependency>
 		<dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>42.7.3</version> <!-- ADD THIS LINE -->
+    <scope>runtime</scope>
+</dependency>
 		 <dependency>
             <groupId>com.opencsv</groupId>
             <artifactId>opencsv</artifactId>
