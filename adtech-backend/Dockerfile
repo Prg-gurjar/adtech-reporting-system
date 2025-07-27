@@ -1,6 +1,6 @@
 # Use a base image with Java 17 and Maven pre-installed
     # You can choose other versions like 'eclipse-temurin:21-jdk-jammy' if you use Java 21
-    FROM maven:3.9.11-eclipse-temurin-21
+    FROM maven:3.9.11-eclipse-temurin-21-jammy
 
     # Set the working directory inside the container
     WORKDIR /app
