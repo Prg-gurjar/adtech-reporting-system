@@ -10,6 +10,10 @@
 
     # Copy the source code
     COPY src ./src
+
+
+    # TEMPORARY: Print pom.xml content to build logs for debugging
+     RUN cat pom.xml
 # Build the Spring Boot application and repackage it in a single Maven command
 # 'install' runs the 'package' phase, which creates the initial JAR.
 # 'spring-boot:repackage' then takes that JAR and makes it executable.
