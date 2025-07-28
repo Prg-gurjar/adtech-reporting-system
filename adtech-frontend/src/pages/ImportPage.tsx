@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Button, message, Typography, Space, Card } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import { uploadCsvData } from '../api'; // This function sends the file to the backend
+import { uploadCsvData } from '../api'; 
 // We still import UploadFile and UploadFileStatus for clarity,
 // but the 'any' cast will bypass strict checking for fileList.
 import type { UploadFile, UploadFileStatus } from 'antd/lib/upload/interface';
@@ -9,13 +9,12 @@ import type { UploadFile, UploadFileStatus } from 'antd/lib/upload/interface';
 const { Title, Text } = Typography;
 
 export default function ImportPage() {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null); // State to store the raw File object
-  const [uploading, setUploading] = useState(false); // State to manage upload loading status
-
+  const [selectedFile, setSelectedFile] = useState<File | null>(null); 
+  const [uploading, setUploading] = useState(false); 
   // Handler for when a file is selected in the Ant Design Upload component
   const handleFileChange = (info: any) => {
     if (info.fileList && info.fileList.length > 0) {
-      setSelectedFile(info.fileList[0].originFileObj); // CRITICAL: Store the raw File object
+      setSelectedFile(info.fileList[0].originFileObj); 
     } else {
       setSelectedFile(null);
     }
@@ -45,23 +44,23 @@ export default function ImportPage() {
   const uploadProps = {
     beforeUpload: (file: File) => {
       setSelectedFile(file);
-      return false; // Prevent Ant Design's default upload behavior
+      return false; 
     },
     onRemove: () => {
-      setSelectedFile(null); // Clear file when removed
+      setSelectedFile(null); 
     },
     // FIX: Cast the entire fileList array to 'any' as a last resort to bypass the TypeScript error.
     // This allows compilation but reduces type safety for this specific prop.
     fileList: selectedFile ? [{
       uid: selectedFile.name,
       name: selectedFile.name,
-      status: 'done' as UploadFileStatus, // Still cast for internal consistency, but 'any' on array is dominant
+      status: 'done' as UploadFileStatus,
       originFileObj: selectedFile,
       url: '',
       size: selectedFile.size,
       type: selectedFile.type,
       lastModified: selectedFile.lastModified,
-    }] as any : [], // <--- CRITICAL FIX: Cast the entire array to 'any'
+    }] as any : [], 
     accept: '.csv',
     maxCount: 1,
     title: "Select CSV file for upload",
