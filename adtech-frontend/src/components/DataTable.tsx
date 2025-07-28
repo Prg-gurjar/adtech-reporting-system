@@ -12,7 +12,7 @@ export interface DataTableProps<T> {
   columns: ColumnsType<T>;
   onChange: (pagination: TablePaginationConfig, filters: any, sorter: any) => void;
   // FIX: Add pageSizeOptions to the props interface
-  pageSizeOptions?: string[]; // Make it optional, as it might not always be provided
+  pageSizeOptions?: string[];
   // FIX: Add showTotal to the props interface, with correct Ant Design signature
   showTotal?: (total: number, range: [number, number]) => React.ReactNode;
 }
@@ -26,15 +26,15 @@ function DataTable<T extends object>({
   loading,
   columns,
   onChange,
-  pageSizeOptions, // Destructure the new prop
-  showTotal, // Destructure the new prop
+  pageSizeOptions, 
+  showTotal, 
 }: DataTableProps<T>) {
   return (
     <Spin spinning={loading}>
       <Table
         columns={columns}
         dataSource={data}
-        rowKey="id" // Assuming 'id' is a common unique key for your data
+        rowKey="id" 
         pagination={{
           current: page,
           pageSize: pageSize,
@@ -45,7 +45,7 @@ function DataTable<T extends object>({
           showTotal: showTotal,
         }}
         onChange={onChange}
-        scroll={{ x: 'max-content' }} // Enable horizontal scrolling for many columns
+        scroll={{ x: 'max-content' }} 
         bordered
       />
     </Spin>
