@@ -7,8 +7,8 @@ const api = axios.create({
   // FIX: Set baseURL to the root of your API, which is often /api
   // The proxy in package.json will forward /api requests to http://localhost:8090/api
 
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api', // <--- CORRECTED BASE URL
-  timeout: 60000, // 60 seconds timeout
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -52,28 +52,28 @@ export interface AdReportData {
 }
 
 export const getDimensions = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/dimensions'); // FIX: Added /reports prefix
+  const response = await api.get<string[]>('/reports/dimensions'); 
   return response.data;
 };
 
 export const getMetrics = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/metrics'); // FIX: Added /reports prefix
+  const response = await api.get<string[]>('/reports/metrics'); 
   return response.data;
 };
 
 export const queryReport = async (query: ReportQueryRequest): Promise<{ content: AdReportData[]; totalElements: number }> => {
-  const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query); // FIX: Added /reports prefix
+  const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query); 
   return response.data;
 };
 
 export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
-  const response = await api.post<any[]>('/reports/aggregate', query); // FIX: Added /reports prefix
+  const response = await api.post<any[]>('/reports/aggregate', query); 
   return response.data;
 };
 
 export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
   try {
-    const response = await api.post('/reports/export', query, { // FIX: Added /reports prefix
+    const response = await api.post('/reports/export', query, { 
       responseType: 'blob',
     });
 
@@ -96,7 +96,7 @@ export const exportReport = async (query: ReportQueryRequest): Promise<void> => 
 // Add a request interceptor to log requests (optional, but good for debugging)
 api.interceptors.request.use(
   config => {
-    // console.log('Request:', config); // Uncomment for more detailed request logging
+    // console.log('Request:', config); 
     return config;
   },
   error => {
@@ -132,7 +132,8 @@ api.interceptors.response.use(
 // Function to upload CSV data
 export const uploadCsvData = async (file: File): Promise<string> => {
   const formData = new FormData();
-  formData.append('file', file); // <--- THIS IS CRITICAL: 'file' as key, native File object as value
+  formData.append('file', file);
+  // <--- THIS IS CRITICAL: 'file' as key, native File object as value
 
   try {
     // ****** IMPORTANT CHANGE HERE ******
