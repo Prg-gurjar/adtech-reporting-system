@@ -1,14 +1,23 @@
-# Step 1: Use official Java 21 slim image
-FROM openjdk:21-slim
+# Stage 1: Build the application using Maven
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
-# Step 2: Set working directory inside the container
 WORKDIR /app
 
-# Step 3: Copy your project's generated JAR into the container
-COPY target/adtech-reportiningSystem-0.1.jar app.jar
+# Copy the entire project
+COPY . .
 
-# Step 4: Expose the port your Spring Boot app uses
+# Move into backend directory and build the JAR
+WORKDIR /app/adtech-backend
+RUN mvn clean package -DskipTests
+
+# Stage 2: Run the built Spring Boot JAR
+FROM openjdk:21-slim
+
+WORKDIR /app
+
+# Copy the generated JAR from the builder stage
+COPY --from=builder /app/adtech-backend/target/*.jar app.jar
+
 EXPOSE 8091
 
-# Step 5: Run the Spring Boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
