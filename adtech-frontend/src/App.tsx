@@ -1,16 +1,15 @@
 
 import React from 'react';
-import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom'; // Crucial: Import useLocation and Link
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import ImportPage from './pages/ImportPage';
 import DashboardPage from './pages/DashboardPage';
-import ReportBuilderPage from './pages/ReportBuilderPage'; // Uncomment this line to include your Report Builder Page
-import { Layout, Menu } from 'antd';
-import { DashboardOutlined, UploadOutlined, LineChartOutlined } from '@ant-design/icons'; // Import icons for better UX
-
+import ReportBuilderPage from './pages/ReportBuilderPage'; 
+import { DashboardOutlined, UploadOutlined, LineChartOutlined } from '@ant-design/icons'; 
 const { Header, Content } = Layout;
 
 function App() {
-  const location = useLocation(); // Get the current URL location
+  const location = useLocation();
+  // Get the current URL location
 
   // Function to determine the currently selected menu key based on the URL path
   const getSelectedKey = () => {
@@ -25,13 +24,14 @@ function App() {
     return [pathKey];
   };
 
-  const selectedKeys = getSelectedKey(); // Get the selected key(s)
+  const selectedKeys = getSelectedKey(); 
+  // Get the selected key(s)
 
   return (
     <Layout style={{ minHeight: '90vh' }}>
       <Header>
        
-        {/* Ant Design Menu for navigation */}
+        {/* Ant Design Menu for navigation  */}
         <Menu 
           theme="dark" 
           mode="horizontal" 
