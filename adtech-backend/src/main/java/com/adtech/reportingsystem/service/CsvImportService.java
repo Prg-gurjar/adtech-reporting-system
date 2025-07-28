@@ -28,7 +28,7 @@ public class CsvImportService {
     @Autowired
     private AdReportDataRepository adReportDataRepository;
 
-    private final ExecutorService executorService = Executors.newFixedThreadPool(5); // For async processing
+    private final ExecutorService executorService = Executors.newFixedThreadPool(5); 
     private final AtomicLong importJobCounter = new AtomicLong();
     private final java.util.Map<Long, String> importStatusMap = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -41,7 +41,7 @@ public class CsvImportService {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
                  CSVReader csvReader = new CSVReader(reader)) {
 
-                String[] header = csvReader.readNext(); // Read header row
+                String[] header = csvReader.readNext();
                 if (header == null || header.length == 0) {
                     importStatusMap.put(jobId, "FAILED: Empty file or no header.");
                     return;
@@ -62,7 +62,7 @@ public class CsvImportService {
 
                 String[] line;
                 List<AdReportData> batch = new ArrayList<>();
-                final int BATCH_SIZE = 5000; // Adjust batch size as needed
+                final int BATCH_SIZE = 5000; 
 
                 long processedRecords = 0;
                 long errorRecords = 0;
