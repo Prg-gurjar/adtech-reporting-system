@@ -27,14 +27,14 @@ interface SummaryMetrics {
 }
 
 // Define constants for page sizes
-const DEFAULT_PAGE_SIZE = 100; // Default page size when no search is active
-const SEARCH_PAGE_SIZE = 10000; // Page size when search is active
+const DEFAULT_PAGE_SIZE = 100; 
+const SEARCH_PAGE_SIZE = 10000;
 
 export default function DashboardPage() {
   const [availableDimensions, setAvailableDimensions] = useState<string[]>([]);
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
   const [tableData, setTableData] = useState<AdReportData[]>([]);
-  const [totalRecords, setTotalRecords] = useState<number>(0); // Actual total from backend
+  const [totalRecords, setTotalRecords] = useState<number>(0); 
   const [loading, setLoading] = useState<boolean>(false);
   const [summaryData, setSummaryData] = useState<SummaryMetrics>({
     totalRequests: 0,
@@ -74,7 +74,8 @@ export default function DashboardPage() {
   useEffect(() => {
     getDimensions().then(res => setAvailableDimensions(res || [])).catch(err => console.error("Error fetching dimensions:", err));
     getMetrics().then(res => setAvailableMetrics(res || [])).catch(err => console.error("Error fetching metrics:", err));
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
+  // Empty dependency array means this runs once on mount
 
   // --- Data Fetching Logic (debounced and memoized) ---
   // This effect will re-run whenever queryParams changes
@@ -84,11 +85,11 @@ export default function DashboardPage() {
       // Adjust the 'size' parameter based on whether a search query is active
       const request: ReportQueryRequest = {
         ...params,
-        size: params.searchQuery ? SEARCH_PAGE_SIZE : params.size, // Use 10000 for search, otherwise current size
+        size: params.searchQuery ? SEARCH_PAGE_SIZE : params.size,
       };
       const response = await queryReport(request);
       setTableData(response.content || []);
-      setTotalRecords(response.totalElements || 0); // Always store the actual total
+      setTotalRecords(response.totalElements || 0); 
     } catch (error) {
       console.error("Error fetching report data:", error);
       if (axios.isAxiosError(error) && error.response) {
@@ -99,7 +100,8 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, 500), []); // Debounce to prevent excessive API calls on rapid filter changes
+  }, 500), []); 
+  // Debounce to prevent excessive API calls on rapid filter changes
 
   const fetchSummaryData = useCallback(debounce(async (params: ReportQueryRequest) => {
     try {
@@ -111,10 +113,11 @@ export default function DashboardPage() {
         inventoryFormatNames: params.inventoryFormatNames,
         operatingSystemVersionNames: params.operatingSystemVersionNames,
         searchQuery: params.searchQuery,
-        metrics: getAvailableMetrics(), // Always use all available metrics for summary
-        groupByDimensions: [], // No grouping for overall summary
+        metrics: getAvailableMetrics(),
+        groupByDimensions: [], 
         page: 1,
-        size: 1 // For aggregate, we only need 1 result (the overall aggregate)
+        size: 1 
+        // For aggregate, we only need 1 result (the overall aggregate)
       };
       const response = await aggregateReport(request);
       if (response && response.length > 0) {
@@ -136,14 +139,16 @@ export default function DashboardPage() {
       }
       setSummaryData({ totalRequests: 0, totalImpressions: 0, totalClicks: 0, totalPayout: 0, averageEcpm: 0 });
     }
-  }, 500), [getAvailableMetrics]); // Dependency on getAvailableMetrics is now correctly defined
+  }, 500), [getAvailableMetrics]); 
+  // Dependency on getAvailableMetrics is now correctly defined
 
 
   // This useEffect triggers the data fetching whenever queryParams changes
   useEffect(() => {
     fetchReportData(queryParams);
     fetchSummaryData(queryParams);
-  }, [queryParams, fetchReportData, fetchSummaryData]); // CRITICAL: queryParams is the dependency
+  }, [queryParams, fetchReportData, fetchSummaryData]);
+  // CRITICAL: queryParams is the dependency
 
   // --- Handlers for Filters and Table ---
   const handleDateRangeChange: RangePickerProps['onChange'] = (dates, dateStrings) => {
@@ -159,16 +164,19 @@ export default function DashboardPage() {
     setQueryParams(prev => ({
       ...prev,
       [field]: values,
-      page: 1, // Reset to first page on filter change
+      page: 1, 
     }));
   };
 
   const handleSearch = (value: string) => {
     setQueryParams(prev => ({
       ...prev,
-      searchQuery: value || undefined, // Set to undefined if empty string
-      page: 1, // Reset to first page on filter change
-      size: value ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE, // Adjust size based on search query presence
+      searchQuery: value || undefined, 
+      // Set to undefined if empty string
+      page: 1, /
+      / Reset to first page on filter change
+      size: value ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE, 
+      // Adjust size based on search query presence
     }));
   };
 
@@ -176,14 +184,16 @@ export default function DashboardPage() {
     setQueryParams(prev => ({
       ...prev,
       [field]: values,
-      page: 1, // Reset to first page on filter change
+      page: 1, 
     }));
   };
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
-    filters: any, // Ant Design filters (not used in your current backend query logic directly)
-    sorter: any // Ant Design sorter
+    filters: any, 
+    // Ant Design filters (not used in your current backend query logic directly)
+    sorter: any 
+    // Ant Design sorter
   ) => {
     const newPage = Math.max(1, pagination.current || 1);
     // Allow page size up to SEARCH_PAGE_SIZE if search is active, otherwise cap at DEFAULT_PAGE_SIZE
@@ -211,8 +221,10 @@ export default function DashboardPage() {
     const exportRequest: ReportQueryRequest = {
       ...queryParams,
       // For export, we want all records matching the current filters, so use totalRecords
-      size: totalRecords > 0 ? totalRecords : 1, // Ensure size is at least 1 if totalRecords is 0
-      page: 1, // Always export from the first page
+      size: totalRecords > 0 ? totalRecords : 1, 
+      // Ensure size is at least 1 if totalRecords is 0
+      page: 1,
+      // Always export from the first page
     };
     exportReport(exportRequest);
   };
@@ -282,15 +294,18 @@ export default function DashboardPage() {
   // Determine pageSizeOptions dynamically
   const getPageSizeOptions = () => {
     if (queryParams.searchQuery) {
-      return ['10', '20', '50', '100', '1000', '10000']; // Include 10000 for search
+      return ['10', '20', '50', '100', '1000', '10000']; 
+      // Include 10000 for search
     } else {
-      return ['10', '20', '50', '100']; // Default options
+      return ['10', '20', '50', '100']; 
+      // Default options
     }
   };
 
   // Determine the total for pagination dynamically
   const getPaginationTotal = () => {
-    return totalRecords; // Showing actual total from backend
+    return totalRecords; 
+    // Showing actual total from backend
   };
 
 
