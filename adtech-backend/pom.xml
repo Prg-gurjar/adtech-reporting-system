@@ -59,11 +59,18 @@
 			<scope>runtime</scope>
 			<optional>true</optional>
 		</dependency>
-		<dependency>
+<!-- Hibernate Core -->
+<dependency>
+    <groupId>org.hibernate.orm</groupId>
+    <artifactId>hibernate-core</artifactId>
+    <version>6.6.18.Final</version> <!-- match your version -->
+</dependency>
+
+<!-- PostgreSQL JDBC Driver -->
+<dependency>
     <groupId>org.postgresql</groupId>
     <artifactId>postgresql</artifactId>
-    <version>42.7.3</version> <!-- ADD THIS LINE -->
-    <scope>runtime</scope>
+    <version>42.6.0</version> <!-- or latest -->
 </dependency>
 		 <dependency>
             <groupId>com.opencsv</groupId>

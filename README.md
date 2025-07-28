@@ -9,15 +9,21 @@ This project provides a comprehensive dashboard and reporting system for adverti
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
-  - [Backend Setup](#backend-setup)
-  - [Frontend Setup](#frontend-setup)
+  - [Backend Setup (Local)](#backend-setup-local)
+  - [Frontend Setup (Local)](#frontend-setup-local)
 - [Running the Application](#running-the-application)
 - [API Endpoints](#api-endpoints)
 - [Database Schema](#database-schema)
 - [Deployment](#deployment)
+  - [Backend Deployment (Render)](#backend-deployment-render)
+  - [PostgreSQL Database on Render](#postgresql-database-on-render)
+  - [Frontend Deployment](#frontend-deployment)
 - [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
+- [Contact](#contact)
+
+---
 
 ## Features
 
@@ -42,27 +48,28 @@ This project provides a comprehensive dashboard and reporting system for adverti
 
 **Backend:**
 * **Spring Boot:** Framework for building robust, production-ready Spring applications.
+* **Java 21:** The specific JDK version used.
+* **Maven:** Build automation and dependency management tool.
 * **Spring Data JPA:** Simplifies data access for relational databases.
 * **Hibernate:** JPA implementation for ORM.
-* **MySQL / PostgreSQL:** (Specify which one you are using) Relational database for storing ad report data.
-* **HikariCP:** High-performance JDBC connection pool.
-* **Lombok:** (If used) Library to reduce boilerplate code.
-* **Maven / Gradle:** (Specify which one you are using) Build automation tool.
+* **PostgreSQL:** Relational database for storing ad report data.
+* **HikariCP:** High-performance JDBC connection pool (included with Spring Boot).
+* **Lombok:** Library to reduce boilerplate code (e.g., getters, setters).
+* **OpenCSV:** For CSV file processing (e.g., imports/exports).
 
 ## Project Structure
 
-```
-.
-├── frontend/                 # React frontend application
+
+├── frontend/             # React frontend application
 │   ├── public/
 │   ├── src/
-│   │   ├── api/              # API client for backend communication
-│   │   ├── components/       # Reusable React components
-│   │   ├── pages/            # Main application pages (DashboardPage, ReportBuilderPage)
-│   │   └── utils/            # Utility functions (e.g., debounce)
+│   │   ├── api/          # API client for backend communication
+│   │   ├── components/   # Reusable React components
+│   │   ├── pages/        # Main application pages (DashboardPage, ReportBuilderPage)
+│   │   └── utils/        # Utility functions (e.g., debounce)
 │   ├── package.json
 │   └── tsconfig.json
-├── backend/                  # Spring Boot backend application
+├── backend/              # Spring Boot backend application
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/com/adtech/reportingsystem/
@@ -72,13 +79,13 @@ This project provides a comprehensive dashboard and reporting system for adverti
 │   │   │   │   ├── repository/   # Spring Data JPA repositories (AdReportDataRepository, custom impl)
 │   │   │   │   └── service/      # Business logic (ReportService)
 │   │   │   └── resources/        # Application properties, database scripts
-│   │   │       ├── application.properties/yml
+│   │   │       ├── application.properties
 │   │   │       └── data.sql (optional, for initial data)
 │   │   └── test/
-│   ├── pom.xml (or build.gradle)
-│   └── README.md (optional, if you have a separate backend readme)
-└── README.md                 # This main project README
-```
+│   ├── pom.xml
+│   └── README.md (optional, for backend-specific details)
+└── README.md             # This main project README
+
 
 ## Getting Started
 
@@ -86,94 +93,93 @@ Follow these instructions to set up and run the project locally.
 
 ### Prerequisites
 
-* Node.js (LTS version recommended) & npm (or Yarn) for the frontend.
-* Java Development Kit (JDK 17 or higher recommended) for the backend.
-* Maven or Gradle (depending on your backend setup).
-* A running MySQL/PostgreSQL database instance.
+* **Node.js** (LTS version recommended) & **npm** (or Yarn) for the frontend.
+* **Java Development Kit (JDK 21)** for the backend.
+* **Maven 3.x** for the backend.
+* A running **PostgreSQL database** instance (local or Dockerized).
+* **Git**
 
-### Backend Setup
+### Backend Setup (Local)
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/your-username/your-repo-name.git](https://github.com/your-username/your-repo-name.git)
-    cd your-repo-name/backend
+    git clone [https://github.com/Prg-gurjar/adtech-reporting-system.git](https://github.com/Prg-gurjar/adtech-reporting-system.git)
+    cd adtech-reporting-system/backend
     ```
 2.  **Database Configuration:**
-    * Create a database (e.g., `ad_reporting_db`) in your MySQL/PostgreSQL instance.
-    * Open `backend/src/main/resources/application.properties` (or `application.yml`) and configure your database connection:
+    * Ensure you have a local PostgreSQL database instance running.
+    * Create a database (e.g., `ad_reporting_db`) and a user with appropriate permissions.
+    * Open `backend/src/main/resources/application.properties` and configure your database connection:
         ```properties
-        spring.datasource.url=jdbc:mysql://localhost:3306/ad_reporting_db?useSSL=false&serverTimezone=UTC
-        spring.datasource.username=your_db_username
-        spring.datasource.password=your_db_password
+        # application.properties (local development)
+        spring.datasource.url=jdbc:postgresql://localhost:5432/[your_local_db_name]
+        spring.datasource.username=[your_local_db_username]
+        spring.datasource.password=[your_local_db_password]
+        spring.datasource.driver-class-name=org.postgresql.Driver
+
         spring.jpa.hibernate.ddl-auto=update # or create, create-drop for development
-        spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect # or PostgreSQLDialect
-        # Additional HikariCP properties if needed
-        spring.datasource.hikari.maximum-pool-size=10 # Adjust based on load
-        spring.datasource.hikari.minimum-idle=2
-        spring.datasource.hikari.idle-timeout=300000 # 5 minutes
-        spring.datasource.hikari.max-lifetime=1800000 # 30 minutes
-        spring.datasource.hikari.connection-timeout=30000 # 30 seconds
+        spring.jpa.show-sql=true
+        spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+
+        server.port=8091 # Or any other port you prefer
+
+        # Other local development properties (CORS, logging, etc.)
+        spring.web.cors.mapping./api/**.allowed-origins=http://localhost:3000
+        spring.web.cors.mapping./api/**.allowed-methods=GET,POST,PUT,DELETE,OPTIONS
+        spring.web.cors.mapping./api/**.allowed-headers=*
+        spring.web.cors.mapping./api/**.allow-credentials=true
         ```
+        **Replace `[your_local_db_name]`, `[your_local_db_username]`, and `[your_local_db_password]` with your actual local PostgreSQL credentials.**
+
 3.  **Build the Backend:**
-    * **Using Maven:**
-        ```bash
-        cd backend
-        mvn clean install
-        ```
-    * **Using Gradle:**
-        ```bash
-        cd backend
-        ./gradlew clean build
-        ```
+    ```bash
+    cd backend
+    mvn clean install
+    ```
     *(Note: If you encounter `OutOfMemoryError` during build or runtime, consider increasing JVM heap space: `MAVEN_OPTS="-Xmx2048m" mvn clean install` or set environment variable `JAVA_OPTS="-Xmx2048m"` before running the jar.)*
 
-### Frontend Setup
+### Frontend Setup (Local)
 
 1.  **Navigate to the frontend directory:**
     ```bash
-    cd ../frontend # From the backend directory, or cd your-repo-name/frontend
+    cd frontend # From the project root, or cd ../frontend from backend directory
     ```
 2.  **Install dependencies:**
     ```bash
     npm install # or yarn install
     ```
 3.  **Configure API Endpoint:**
-    * By default, the frontend will try to connect to the backend at `http://localhost:8080`. If your backend runs on a different port or host, you might need to configure it in your `frontend/src/api.ts` or similar file, or via a proxy setting in `package.json` for development.
-        * **`frontend/package.json` (for development proxy):**
-            ```json
-            {
-              "name": "frontend",
-              "version": "0.1.0",
-              "private": true,
-              "proxy": "http://localhost:8080", // <--- Add this line
-              "dependencies": {
-                // ...
-              }
-            }
-            ```
-        * For production builds, you'll configure the actual API URL.
+    * During local development, the frontend will typically proxy API requests to your local backend. Ensure your `frontend/package.json` includes the proxy setting:
+        ```json
+        {
+          "name": "frontend",
+          "version": "0.1.0",
+          "private": true,
+          "proxy": "http://localhost:8091", // <--- Make sure this matches your backend's local port
+          "dependencies": {
+            // ...
+          }
+        }
+        ```
+        If your backend is running on a different port than `8091`, update the `proxy` value accordingly.
 
 ## Running the Application
 
 1.  **Start the Backend:**
+    * Open a terminal and navigate to the `backend` directory.
     * **Using Maven:**
         ```bash
-        cd backend
         mvn spring-boot:run
         ```
-    * **Using Jar:**
+    * **Using Jar (after `mvn clean package`):**
         ```bash
-        cd backend/target # or backend/build/libs if Gradle
-        java -jar your-application-name.jar
+        cd backend/target
+        java -jar adtech-reportiningSystem-0.1.jar # Ensure this matches your actual JAR name
         ```
-    The backend will typically run on `http://localhost:8080`.
+    The backend will typically run on `http://localhost:8091`.
 
 2.  **Start the Frontend:**
-    * Open a **new terminal window**.
-    * **Navigate to the frontend directory:**
-        ```bash
-        cd frontend
-        ```
+    * Open a **new terminal window** and navigate to the `frontend` directory.
     * **Start the React development server:**
         ```bash
         npm start # or yarn start
@@ -182,13 +188,18 @@ Follow these instructions to set up and run the project locally.
 
 ## API Endpoints
 
-(Provide a brief overview of your main backend API endpoints)
+(Provide a brief overview of your main backend API endpoints - **These are examples, verify your actual endpoints**)
 
 * `GET /api/reports/dimensions`: Get available reporting dimensions.
 * `GET /api/reports/metrics`: Get available reporting metrics.
 * `POST /api/reports/query`: Query paginated and sortable report data.
 * `POST /api/reports/aggregate`: Get aggregated summary report data.
 * `POST /api/reports/export`: Export report data to CSV.
+
+**API Documentation (Swagger/OpenAPI - if implemented):**
+If you have integrated Swagger/OpenAPI (e.g., using `springdoc-openapi-starter-webmvc-ui`), you can access the API documentation at:
+* **Local:** `http://localhost:8091/swagger-ui.html`
+* **Deployed:** `https://[your-render-backend-url].onrender.com/swagger-ui.html`
 
 ## Database Schema
 
@@ -216,65 +227,70 @@ The `AdReportData` entity typically contains fields like:
 
 ## Deployment
 
-Deploying a full-stack application involves deploying the backend API and the frontend separately, then configuring them to communicate.
+This project is primarily configured for continuous deployment with **Render**.
 
-**Backend Deployment (Spring Boot):**
+### Backend Deployment (Render)
 
-You can deploy your Spring Boot backend to various cloud platforms. Popular choices include:
+Your Spring Boot backend is deployed as a Web Service on Render, leveraging a `Dockerfile`.
 
-* **Heroku:** Simple for smaller projects. You can push your Git repository directly.
-* **AWS (EC2, Elastic Beanstalk):** More control, but steeper learning curve.
-* **Google Cloud Platform (App Engine, Compute Engine):** Similar to AWS.
-* **DigitalOcean, Render, Fly.io:** Developer-friendly alternatives.
+1.  **Connect your GitHub repository to Render:** If you haven't already, connect your `adtech-reporting-system` repository to your Render account.
+2.  **Create a new Web Service:** In your Render dashboard, select "New Web Service".
+3.  **Select your repository:** Choose `adtech-reporting-system`.
+4.  **Configure the build settings:**
+    * **Root Directory:** `backend` (This is crucial as your `Dockerfile` is inside the `backend` folder).
+    * **Build Command:** `mvn clean package -DskipTests`
+    * **Start Command:** `java -jar target/adtech-reportiningSystem-0.1.jar` (Verify `adtech-reportiningSystem-0.1.jar` matches the `artifactId` and `version` in your `backend/pom.xml`.)
+    * **Environment:** Java
+    * **Add Environment Variables:**
+        * `DATABASE_URL`: `jdbc:postgresql://dpg-d2326mmmcj7s73d3eg2g-a.ohio-postgres.render.com/adtech_reporting_db` (Use the **internal connection string** provided by your Render PostgreSQL service.)
+        * `DATABASE_USERNAME`: `adtech_user` (Use the username for your Render PostgreSQL database.)
+        * `DATABASE_PASSWORD`: `RiIlPOhdy6sMeRGuqawpTl4MMI5NwVUX` (Use the password for your Render PostgreSQL database.)
+        * `SPRING_PROFILES_ACTIVE`: `prod` (Optional, if you use a separate `application-prod.properties` for production settings)
+        * `PORT`: `8091` (This is the port your Spring Boot app listens on. Render will typically expose it on port 80/443.)
 
-**General steps:**
-1.  **Build a production-ready JAR/WAR file:** `mvn clean package` (Maven) or `./gradlew clean bootJar` (Gradle).
-2.  **Choose a cloud provider.**
-3.  **Configure environment variables:** Database URL, credentials, any other secrets.
-4.  **Upload and deploy the JAR/WAR file.**
-5.  **Set up a persistent database service.**
+    **IMPORTANT:** Ensure the `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` environment variables in Render exactly match the internal connection details of your PostgreSQL database deployed on Render.
 
-**Frontend Deployment (React):**
+5.  Render will automatically build and deploy your application on every push to the `main` branch. The backend will be accessible at `https://[your-render-backend-service-name].onrender.com`.
 
-For the React frontend, you'll build static assets and serve them.
+### PostgreSQL Database on Render
 
-* **Vercel / Netlify:** Excellent for static site deployment and easy CI/CD integration.
-* **GitHub Pages:** Simple for basic static sites.
-* **AWS S3 + CloudFront:** For highly scalable static site hosting.
-* **Serve directly from your backend:** You can configure Spring Boot to serve the React build (`npm run build`) from its static resources, but this couples the deployments.
+A managed PostgreSQL database instance is used for persistence.
 
-**General steps:**
+1.  **Create a new PostgreSQL service** on Render.
+2.  **Configure your database details:**
+    * **Name:** `adtech-reporting-db` (or your preferred name)
+    * **Database:** `adtech_reporting_db`
+    * **User:** `adtech_user`
+    * **Password:** `RiIlPOhdy6sMeRGuqawpTl4MMI5NwVUX` (Generate a strong password and save it securely!)
+    * **Region:** Choose a region close to your web service (e.g., Ohio).
+3.  **Note down the Internal Database URL, Username, and Password** provided by Render. These are the values you use for the environment variables in your backend web service.
+
+### Frontend Deployment
+
+The React frontend is typically deployed as a static site.
+
 1.  **Build the React application for production:**
     ```bash
     cd frontend
     npm run build # or yarn build
     ```
-    This creates an optimized `build` folder.
-2.  **Choose a hosting provider (Vercel/Netlify recommended for ease).**
-3.  **Upload the contents of the `build` folder.**
-4.  **Configure environment variables:** If your frontend needs to know the deployed backend API URL, you'll pass it as an environment variable during the build process (e.g., `REACT_APP_API_URL` for Create React App).
+    This creates an optimized `build` folder containing all static assets.
 
-**Example Deployment Flow (using Heroku for Backend, Vercel for Frontend):**
+2.  **Choose a hosting provider:**
+    * **Vercel / Netlify:** Highly recommended for easy CI/CD integration and static site hosting.
+    * **Render Static Site:** You can also host the frontend as a static site on Render.
 
-1.  **Backend (Heroku):**
-    * Install Heroku CLI.
-    * `heroku login`
-    * `heroku create your-backend-app-name`
-    * `git subtree push --prefix backend heroku main` (If you have a monorepo setup)
-    * Configure Heroku PostgreSQL add-on or external database.
-    * Set `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, `SPRING_DATASOURCE_PASSWORD` environment variables on Heroku.
-
-2.  **Frontend (Vercel):**
-    * Install Vercel CLI.
-    * `cd frontend`
-    * `npm run build`
-    * `vercel` (follow prompts to link to Git repo and deploy).
-    * Set `REACT_APP_API_URL` environment variable in Vercel project settings to your deployed backend URL (e.g., `https://your-backend-app-name.herokuapp.com/api`).
+3.  **Configure environment variables for the frontend build:**
+    If your frontend needs to know the deployed backend API URL, you'll pass it as an environment variable during the build process (e.g., `REACT_APP_API_URL` for Create React App).
+    * Set `REACT_APP_API_URL` to `https://[your-render-backend-service-name].onrender.com/api` (or your specific base API path) in your frontend hosting provider's environment settings.
 
 ## Troubleshooting
 
+* **`java.lang.RuntimeException: Driver org.postgresql.Driver claims to not accept jdbcUrl`:** This indicates an issue with your `spring.datasource.url` format or the environment variable setup in Render. **Ensure `application.properties` uses `${DATABASE_URL}` format and Render env vars are correctly set.**
+* **`Cannot load driver class: org.postgresql.Driver`:** This means the PostgreSQL driver is not on the classpath. Verify your `backend/pom.xml` explicitly includes the `postgresql` dependency with `<scope>runtime</scope>`. If it's present, re-check Render logs for any build errors related to Maven downloading dependencies.
+* **`No static resource [path]`:** This means your backend received a request for a path (e.g., `/dashboard`) for which it has no controller mapping and no corresponding static file (like `dashboard.html`). This often occurs when a frontend tries to access an endpoint that doesn't exist or is misconfigured.
 * **`OutOfMemoryError` on Backend:** Ensure your database queries are optimized (indexes!), and increase JVM heap space (`-Xmx`). Large `findAll()` operations without pagination are a common cause.
-* **Frontend Data Not Loading:** Check your browser's developer console for network errors. Ensure the frontend is pointing to the correct backend API URL. Check backend logs for incoming requests and errors.
+* **Frontend Data Not Loading:** Check your browser's developer console for network errors (e.g., 404, 500, CORS). Ensure the frontend is pointing to the correct backend API URL. Check backend logs for incoming requests and errors.
 * **Application Hangs/Slow:** This is usually due to large data fetches or inefficient rendering.
     * **Backend:** Verify pagination is working, optimize database queries (indexes, projections), and ensure aggregation happens in the DB.
     * **Frontend:** Reduce default `pageSize` for tables. Consider virtualized lists/tables for displaying thousands of rows.
@@ -294,7 +310,3 @@ For the React frontend, you'll build static assets and serve them.
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information. (You might want to create a `LICENSE` file in your root directory if you choose a specific license).
-
-#   a d t e c h - r e p o r t i n g - s y s t e m  
- #   a d t e c h - r e p o r t i n g - s y s t e m  
- 
