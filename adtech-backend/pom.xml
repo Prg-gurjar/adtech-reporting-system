@@ -63,14 +63,14 @@
 <dependency>
     <groupId>org.hibernate.orm</groupId>
     <artifactId>hibernate-core</artifactId>
-    <version>6.6.18.Final</version> <!-- match your version -->
+    <version>6.6.18.Final</version> 
 </dependency>
 
 <!-- PostgreSQL JDBC Driver -->
 <dependency>
     <groupId>org.postgresql</groupId>
     <artifactId>postgresql</artifactId>
-    <version>42.6.0</version> <!-- or latest -->
+    <version>42.6.0</versio>
 </dependency>
 		 <dependency>
             <groupId>com.opencsv</groupId>
