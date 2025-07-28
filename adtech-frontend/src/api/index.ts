@@ -8,7 +8,7 @@ const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api', // <--- CORRECTED BASE URL
   timeout: 60000, // 60 seconds timeout
   headers: {
-    'Accept': 'application/json',
+    'Content-Type': 'application/json',
   },
 });
 
