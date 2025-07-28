@@ -33,7 +33,7 @@ public class AdReportController {
     @Autowired
     private ReportService reportService;
 
-    @PostMapping("/data/import") // This mapping is correct and remains unchanged
+    @PostMapping("/data/import") 
     public ResponseEntity<?> uploadCsv(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Please select a CSV file to upload.");
@@ -78,22 +78,6 @@ public class AdReportController {
         return ResponseEntity.ok(data);
     }
 
-    // Example in AdReportController.java
-    //    @PostMapping("/reports/query") // Or whatever your mapping is
-    //    public ResponseEntity<ReportResponse> queryReports(@RequestBody QueryParams queryParams) {
-    //        // Basic validation for page and pageSize
-    //        if (queryParams.getPage() < 0) { // Page is usually 0-indexed in Spring Data JPA
-    //            queryParams.setPage(0); // Default to first page
-    //        }
-    //        if (queryParams.getPageSize() < 1) {
-    //            // Throw an exception, return a bad request, or set a default valid size
-    //            throw new IllegalArgumentException("Page size must be at least one.");
-    //            // Or return new ResponseEntity<>("Page size must be at least one.", HttpStatus.BAD_REQUEST);
-    //        }
-    //        // ... then call your service
-    //        return ResponseEntity.ok(reportService.getReportData(queryParams));
-    //    }
-
 
     // For dashboard overview and charts (aggregated data)
     @PostMapping("/reports/aggregate")
@@ -113,17 +97,17 @@ public class AdReportController {
         exportQuery.setInventoryFormatNames(queryRequest.getInventoryFormatNames());
         exportQuery.setOperatingSystemVersionNames(queryRequest.getOperatingSystemVersionNames());
         exportQuery.setSearchQuery(queryRequest.getSearchQuery());
-        exportQuery.setGroupByDimensions(queryRequest.getGroupByDimensions()); // If you want to export aggregated
+        exportQuery.setGroupByDimensions(queryRequest.getGroupByDimensions()); 
         exportQuery.setMetrics(queryRequest.getMetrics());
 
-        List<Map<String, Object>> dataToExport = reportService.getAggregatedReportData(exportQuery); // Or getReportData for raw data
+        List<Map<String, Object>> dataToExport = reportService.getAggregatedReportData(exportQuery); 
 
         StringWriter writer = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(writer)) {
             // Write header
             List<String> headers = new ArrayList<>();
             if (!dataToExport.isEmpty()) {
-                headers.addAll(dataToExport.get(0).keySet()); // Get all keys from the first row as headers
+                headers.addAll(dataToExport.get(0).keySet()); 
             }
             csvWriter.writeNext(headers.toArray(new String[0]));
 
