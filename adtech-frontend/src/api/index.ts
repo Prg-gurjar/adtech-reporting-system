@@ -2,6 +2,7 @@
 
 import axios from 'axios';
 import { message } from 'antd';
+import { Layout, Menu } from 'antd';
 
 const api = axios.create({
   // FIX: Set baseURL to the root of your API, which is often /api
