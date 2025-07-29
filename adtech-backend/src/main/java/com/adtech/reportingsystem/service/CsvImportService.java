@@ -1,4 +1,3 @@
-
 package com.adtech.reportingsystem.service;
 
 import com.adtech.reportingsystem.model.AdReportData;
@@ -47,7 +46,6 @@ public class CsvImportService {
                     return;
                 }
 
-                // Basic header validation (you might want more robust validation)
                 List<String> expectedHeaders = List.of("mobile_app_resolved_id", "mobile_app_name", "domain",
                         "ad_unit_name", "ad_unit_id", "inventory_format_name", "operating_system_version_name", "date",
                         "ad_exchange_total_requests", "ad_exchange_responses_served", "ad_exchange_match_rate",
@@ -79,11 +77,11 @@ public class CsvImportService {
                     } catch (Exception e) {
                         System.err.println("Error parsing CSV line: " + String.join(",", line) + " - " + e.getMessage());
                         errorRecords++;
-                        // Log the error, perhaps store in a separate table for auditing
+                        
                     }
                 }
                 if (!batch.isEmpty()) {
-                    adReportDataRepository.saveAll(batch); // Save remaining records
+                    adReportDataRepository.saveAll(batch); 
                 }
                 importStatusMap.put(jobId, String.format("COMPLETED: Processed %d records, %d errors.", processedRecords, errorRecords));
 
@@ -136,7 +134,7 @@ public class CsvImportService {
                         data.setOperatingSystemVersionName(value);
                         break;
                     case "date":
-                        data.setDate(LocalDate.parse(value)); // Assuming YYYY-MM-DD
+                        data.setDate(LocalDate.parse(value)); 
                         break;
                     case "ad_exchange_total_requests":
                         data.setAdExchangeTotalRequests(Long.parseLong(value));
@@ -163,7 +161,6 @@ public class CsvImportService {
                         data.setPayout(Double.parseDouble(value));
                         break;
                     default:
-                        // Handle unknown columns or log a warning
                         break;
                 }
             } catch (NumberFormatException | DateTimeParseException e) {
