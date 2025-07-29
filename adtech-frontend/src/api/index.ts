@@ -1,21 +1,175 @@
 
 
+// import axios from 'axios';
+// import { message } from 'antd';
+// import { Layout, Menu } from 'antd';
+
+// const api = axios.create({
+//   // FIX: Set baseURL to the root of your API, which is often /api
+//   // The proxy in package.json will forward /api requests to http://localhost:8090/api
+
+//   baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com', // <--- CORRECTED BASE URL
+//   timeout: 60000, // 60 seconds timeout
+//   headers: {
+//     'Content-Type': 'application/json',
+//   },
+// });
+
+// // --- API Functions for Dashboard/Reports ---
+
+// export interface ReportQueryRequest {
+//   startDate?: string;
+//   endDate?: string;
+//   mobileAppNames?: string[];
+//   inventoryFormatNames?: string[];
+//   operatingSystemVersionNames?: string[];
+//   searchQuery?: string;
+//   groupByDimensions?: string[];
+//   metrics?: string[];
+//   page: number;
+//   size: number;
+//   sortBy?: string;
+//   sortOrder?: 'ASC' | 'DESC';
+// }
+
+// export interface AdReportData {
+//   id: number;
+//   mobileAppResolvedId: string;
+//   mobileAppName: string;
+//   domain: string;
+//   adUnitName: string;
+//   adUnitId: string;
+//   inventoryFormatName: string;
+//   operatingSystemVersionName: string;
+//   date: string;
+//   adExchangeTotalRequests: number;
+//   adExchangeResponsesServed: number;
+//   adExchangeMatchRate: number;
+//   adExchangeLineItemLevelImpressions: number;
+//   adExchangeLineItemLevelClicks: number;
+//   adExchangeLineItemLevelCtr: number;
+//   averageEcpm: number;
+//   payout: number;
+// }
+
+// export const getDimensions = async (): Promise<string[]> => {
+//   const response = await api.get<string[]>('/reports/dimensions'); // FIX: Added /reports prefix
+//   return response.data;
+// };
+
+// export const getMetrics = async (): Promise<string[]> => {
+//   const response = await api.get<string[]>('/reports/metrics'); // FIX: Added /reports prefix
+//   return response.data;
+// };
+
+// export const queryReport = async (query: ReportQueryRequest): Promise<{ content: AdReportData[]; totalElements: number }> => {
+//   const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query); // FIX: Added /reports prefix
+//   return response.data;
+// };
+
+// export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
+//   const response = await api.post<any[]>('/reports/aggregate', query); // FIX: Added /reports prefix
+//   return response.data;
+// };
+
+// export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
+//   try {
+//     const response = await api.post('/reports/export', query, { // FIX: Added /reports prefix
+//       responseType: 'blob',
+//     });
+
+//     const url = window.URL.createObjectURL(new Blob([response.data]));
+//     const link = document.createElement('a');
+//     link.href = url;
+//     link.setAttribute('download', 'ad_report.csv');
+//     document.body.appendChild(link);
+//     link.click();
+//     link.remove();
+//     window.URL.revokeObjectURL(url);
+//     message.success('Report exported successfully!');
+//   } catch (error: any) {
+//     console.error('Error exporting report:', error);
+//     message.error(error.response?.data || 'Failed to export report.');
+//     throw error;
+//   }
+// };
+
+// // Add a request interceptor to log requests (optional, but good for debugging)
+// api.interceptors.request.use(
+//   config => {
+//     // console.log('Request:', config); // Uncomment for more detailed request logging
+//     return config;
+//   },
+//   error => {
+//     return Promise.reject(error);
+//   }
+// );
+
+// // Add a response interceptor for global error handling
+// api.interceptors.response.use(
+//   response => {
+//     return response;
+//   },
+//   error => {
+//     if (error.response) {
+//       // The request was made and the server responded with a status code
+//       // that falls out of the range of 2xx
+//       console.error('API Error Response:', error.response.data);
+//       console.error('API Error Status:', error.response.status);
+//       console.error('API Error Headers:', error.response.headers);
+//       throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
+//     } else if (error.request) {
+//       // The request was made but no response was received
+//       console.error('API Error Request:', error.request);
+//       throw new Error('No response from server. Please check your network connection.');
+//     } else {
+//       // Something happened in setting up the request that triggered an Error
+//       console.error('API Error Message:', error.message);
+//       throw new Error(`Request setup error: ${error.message}`);
+//     }
+//   }
+// );
+
+// // Function to upload CSV data
+// export const uploadCsvData = async (file: File): Promise<string> => {
+//   const formData = new FormData();
+//   formData.append('file', file); // <--- THIS IS CRITICAL: 'file' as key, native File object as value
+
+//   try {
+//     // ****** IMPORTANT CHANGE HERE ******
+//     const response = await api.post<string>('/data/import', formData, { // Changed from '/reports/upload-csv'
+//       // Axios will automatically set 'Content-Type': 'multipart/form-data'
+//       // when sending a FormData object. Do NOT manually set it here.
+//     });
+//     return response.data;
+//   } catch (error: any) {
+//     console.error('Error in uploadCsvData:', error);
+//     throw error;
+//   }
+// };
+
+
+
 import axios from 'axios';
 import { message } from 'antd';
-import { Layout, Menu } from 'antd';
+import { Layout, Menu } from 'antd'; // Assuming these are used elsewhere in this file or component
 
 const api = axios.create({
-  // FIX: Set baseURL to the root of your API, which is often /api
-  // The proxy in package.json will forward /api requests to http://localhost:8090/api
-
-  baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com', // <--- CORRECTED BASE URL
+  baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com',
   timeout: 60000, // 60 seconds timeout
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  // REMOVE THIS LINE:
+  // headers: {
+  //   'Content-Type': 'application/json', // <--- REMOVE OR COMMENT OUT THIS ENTIRE BLOCK
+  // },
 });
 
-// --- API Functions for Dashboard/Reports ---
+// Axios is smart enough to set the Content-Type automatically:
+// - If you send a plain JavaScript object, it defaults to 'application/json'.
+// - If you send a FormData object, it defaults to 'multipart/form-data'.
+// - If you send a URLSearchParams object or a simple string, it defaults to 'application/x-www-form-urlencoded'.
+
+// --- API Functions for Dashboard/Reports (no changes needed here, as Axios will apply
+//     'application/json' correctly for your JSON payloads by default) ---
 
 export interface ReportQueryRequest {
   startDate?: string;
@@ -53,28 +207,28 @@ export interface AdReportData {
 }
 
 export const getDimensions = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/dimensions'); // FIX: Added /reports prefix
+  const response = await api.get<string[]>('/reports/dimensions');
   return response.data;
 };
 
 export const getMetrics = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/metrics'); // FIX: Added /reports prefix
+  const response = await api.get<string[]>('/reports/metrics');
   return response.data;
 };
 
 export const queryReport = async (query: ReportQueryRequest): Promise<{ content: AdReportData[]; totalElements: number }> => {
-  const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query); // FIX: Added /reports prefix
+  const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query);
   return response.data;
 };
 
 export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
-  const response = await api.post<any[]>('/reports/aggregate', query); // FIX: Added /reports prefix
+  const response = await api.post<any[]>('/reports/aggregate', query);
   return response.data;
 };
 
 export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
   try {
-    const response = await api.post('/reports/export', query, { // FIX: Added /reports prefix
+    const response = await api.post('/reports/export', query, {
       responseType: 'blob',
     });
 
@@ -112,18 +266,14 @@ api.interceptors.response.use(
   },
   error => {
     if (error.response) {
-      // The request was made and the server responded with a status code
-      // that falls out of the range of 2xx
       console.error('API Error Response:', error.response.data);
       console.error('API Error Status:', error.response.status);
       console.error('API Error Headers:', error.response.headers);
       throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
     } else if (error.request) {
-      // The request was made but no response was received
       console.error('API Error Request:', error.request);
       throw new Error('No response from server. Please check your network connection.');
     } else {
-      // Something happened in setting up the request that triggered an Error
       console.error('API Error Message:', error.message);
       throw new Error(`Request setup error: ${error.message}`);
     }
@@ -133,13 +283,12 @@ api.interceptors.response.use(
 // Function to upload CSV data
 export const uploadCsvData = async (file: File): Promise<string> => {
   const formData = new FormData();
-  formData.append('file', file); // <--- THIS IS CRITICAL: 'file' as key, native File object as value
+  formData.append('file', file);
 
   try {
-    // ****** IMPORTANT CHANGE HERE ******
-    const response = await api.post<string>('/data/import', formData, { // Changed from '/reports/upload-csv'
-      // Axios will automatically set 'Content-Type': 'multipart/form-data'
-      // when sending a FormData object. Do NOT manually set it here.
+    const response = await api.post<string>('/data/import', formData, {
+      // Axios will now correctly set 'Content-Type': 'multipart/form-data' automatically
+      // because the global 'application/json' default is removed.
     });
     return response.data;
   } catch (error: any) {
