@@ -8,7 +8,7 @@ const api = axios.create({
   // FIX: Set baseURL to the root of your API, which is often /api
   // The proxy in package.json will forward /api requests to http://localhost:8090/api
 
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api', // <--- CORRECTED BASE URL
+  baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com', // <--- CORRECTED BASE URL
   timeout: 60000, // 60 seconds timeout
   headers: {
     'Content-Type': 'application/json',
