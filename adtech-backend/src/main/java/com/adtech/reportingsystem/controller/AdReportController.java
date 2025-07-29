@@ -1,4 +1,3 @@
-
 package com.adtech.reportingsystem.controller;
 
 import com.adtech.reportingsystem.model.AdReportData;
@@ -21,7 +20,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-//import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api")
@@ -104,14 +102,14 @@ public class AdReportController {
 
         StringWriter writer = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(writer)) {
-            // Write header
+        
             List<String> headers = new ArrayList<>();
             if (!dataToExport.isEmpty()) {
                 headers.addAll(dataToExport.get(0).keySet()); 
             }
             csvWriter.writeNext(headers.toArray(new String[0]));
 
-            // Write data rows
+            
             for (Map<String, Object> row : dataToExport) {
                 List<String> rowValues = new ArrayList<>();
                 for (String header : headers) {
