@@ -14,7 +14,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(allowedOrigins) // Use the injected value
+                .allowedOrigins(.allowedOrigins("http://localhost:3000", "https://adtech-reporting-system-n1w9.vercel.app/")) // Use the injected value
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
