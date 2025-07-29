@@ -173,8 +173,8 @@ export default function DashboardPage() {
       ...prev,
       searchQuery: value || undefined, 
       // Set to undefined if empty string
-      page: 1, /
-      / Reset to first page on filter change
+      page: 1, 
+      // Reset to first page on filter change
       size: value ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE, 
       // Adjust size based on search query presence
     }));
