@@ -231,7 +231,7 @@ export const exportReport = async (query: ReportQueryRequest): Promise<void> => 
 
 // --- CSV Upload ---
 export const uploadCsvData = async (file: File): Promise<any> => {
-  const formData = new FormData();
+  const formData:FormData = new FormData();
   formData.append('file', file);
 
   try {
