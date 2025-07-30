@@ -38,7 +38,7 @@ public class AdReportController {
             return ResponseEntity.badRequest().body("Please select a CSV file to upload.");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.toLowerCase().contains("csv")) {
+        if (contentType == null || !(contentType.contains("csv") || contentType.equals("application/vnd.ms-excel"))) {
              return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
         }
 
