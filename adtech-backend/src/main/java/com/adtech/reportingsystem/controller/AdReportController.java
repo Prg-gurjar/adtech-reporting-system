@@ -37,9 +37,11 @@ public class AdReportController {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Please select a CSV file to upload.");
         }
-        if (!"text/csv".equals(file.getContentType())) {
-            return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().contains("csv")) {
+             return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
         }
+
 
         try {
             Long jobId = csvImportService.importCsvData(file);
