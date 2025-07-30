@@ -111,11 +111,11 @@ public class AdReportController {
             }
         }
 
-        byte[] csvBytes = writer.toString().getBytes(StandardCharsets.UTF_8);
+        byte[] csvBytes = writer.toString().getBytes("UTF-8");
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv"));
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=adtech_report.csv");
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"adtech_report.csv\"");
         headers.setContentLength(csvBytes.length);
 
         return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
