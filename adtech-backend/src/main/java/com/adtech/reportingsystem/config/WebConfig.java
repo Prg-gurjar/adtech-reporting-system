@@ -8,14 +8,14 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed-origins}") // Read allowed origins from application.properties or env var
+    @Value("${cors.allowed-origins}")
     private String[] allowedOrigins;
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:3000", "https://adtech-reporting-system-n1w9.vercel.app") // Use the injected value
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedOrigins(allowedOrigins)  // ✅ Now using the injected values
+                .allowedMethods("*")
                 .allowedHeaders("*")
                 .allowCredentials(true);
     }
