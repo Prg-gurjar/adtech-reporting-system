@@ -157,10 +157,7 @@ import { Layout, Menu } from 'antd'; // Assuming these are used elsewhere in thi
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com',
   timeout: 60000, // 60 seconds timeout
-  // REMOVE THIS LINE:
-  // headers: {
-  //   'Content-Type': 'application/json', // <--- REMOVE OR COMMENT OUT THIS ENTIRE BLOCK
-  // },
+  
 });
 
 // Axios is smart enough to set the Content-Type automatically:
