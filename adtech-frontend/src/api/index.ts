@@ -280,7 +280,7 @@ api.interceptors.response.use(
 // Function to upload CSV data
 export const uploadCsvData = async (file: File): Promise<string> => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append('file', new File([file], file.name, { type: 'text/csv' }));
 
   try {
     const response = await api.post<string>('/data/import', formData, {
