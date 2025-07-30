@@ -5,7 +5,7 @@ import { Layout, Menu } from 'antd'; // Assuming these are used elsewhere in thi
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'https://adtech-backend-api.onrender.com',
   timeout: 60000, // 60 seconds timeout
-  
+  // No default 'Content-Type' header here, Axios will set it automatically.
 });
 
 // Axios is smart enough to set the Content-Type automatically:
@@ -13,8 +13,7 @@ const api = axios.create({
 // - If you send a FormData object, it defaults to 'multipart/form-data'.
 // - If you send a URLSearchParams object or a simple string, it defaults to 'application/x-www-form-urlencoded'.
 
-// --- API Functions for Dashboard/Reports (no changes needed here, as Axios will apply
-//     'application/json' correctly for your JSON payloads by default) ---
+// --- API Functions for Dashboard/Reports ---
 
 export interface ReportQueryRequest {
   startDate?: string;
@@ -127,11 +126,13 @@ api.interceptors.response.use(
 
 // Function to upload CSV data
 export const uploadCsvData = async (file: File): Promise<string> => {
-  const formData = await api.post<string>('/api/data/import', formData);
-  formData.append('file', new File([file], file.name, { type: 'text/csv' }));
+  // *** CORRECTED LOGIC HERE ***
+  const formData = new FormData(); // 1. Initialize FormData
+  formData.append('file', file); // 2. Append the *actual* File object directly
 
   try {
-   const response = await api.post<string>('/api/data/import', formData);
+    // 3. Make a single POST request with the correctly formed FormData
+    const response = await api.post<string>('/api/data/import', formData);
     return response.data;
   } catch (error: any) {
     console.error('Error in uploadCsvData:', error);
