@@ -31,6 +31,7 @@ public class AdReportController {
     @Autowired
     private ReportService reportService;
 
+    @CrossOrigin(origins = "https://adtech-reporting-system-n1w9.vercel.app")
     @PostMapping("/data/import") 
     public ResponseEntity<?> uploadCsv(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
