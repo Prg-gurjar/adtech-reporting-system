@@ -234,12 +234,11 @@ export const uploadCsvData = async (file: File): Promise<any> => {
   const formData:FormData = new FormData();
   formData.append('file', file);
 
-  try {
-    const response = await api.post('/data/import', formData);
+   try {
+    const response = await api.post<string>('/data/import', formData);
     return response.data;
   } catch (error: any) {
     console.error('Error in uploadCsvData:', error);
-    message.error('CSV upload failed.');
     throw error;
   }
 };
