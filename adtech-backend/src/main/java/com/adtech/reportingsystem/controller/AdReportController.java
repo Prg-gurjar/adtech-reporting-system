@@ -3,26 +3,22 @@ package com.adtech.reportingsystem.controller;
 import com.adtech.reportingsystem.model.AdReportData;
 import com.adtech.reportingsystem.service.CsvImportService;
 import com.adtech.reportingsystem.service.ReportService;
+import com.opencsv.CSVWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import com.opencsv.CSVWriter;
 
 import java.io.IOException;
 import java.io.StringWriter;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
+@CrossOrigin(origins = "https://adtech-reporting-system-n1w9.vercel.app")  // Allow Vercel frontend
 public class AdReportController {
 
     @Autowired
@@ -31,25 +27,29 @@ public class AdReportController {
     @Autowired
     private ReportService reportService;
 
-    @CrossOrigin(origins = "https://adtech-reporting-system-n1w9.vercel.app")
-    @PostMapping("/data/import") 
+    @PostMapping("/data/import")
     public ResponseEntity<?> uploadCsv(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Please select a CSV file to upload.");
         }
+
         String contentType = file.getContentType();
         if (contentType == null || !(contentType.contains("csv") || contentType.equals("application/vnd.ms-excel"))) {
-             return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
+            return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
         }
-
 
         try {
             Long jobId = csvImportService.importCsvData(file);
-            return ResponseEntity.ok(Map.of("message", "CSV import initiated successfully.", "jobId", jobId));
+            return ResponseEntity.ok(Map.of(
+                    "message", "CSV import initiated successfully.",
+                    "jobId", jobId
+            ));
         } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload CSV: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to upload CSV: " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An unexpected error occurred during CSV import: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("An unexpected error occurred during CSV import: " + e.getMessage());
         }
     }
 
@@ -61,7 +61,6 @@ public class AdReportController {
         }
         return ResponseEntity.ok(Map.of("jobId", jobId, "status", status));
     }
-
 
     @GetMapping("/reports/dimensions")
     public ResponseEntity<List<String>> getDimensions() {
@@ -79,50 +78,32 @@ public class AdReportController {
         return ResponseEntity.ok(data);
     }
 
-
-    // For dashboard overview and charts (aggregated data)
     @PostMapping("/reports/aggregate")
     public ResponseEntity<List<Map<String, Object>>> aggregateReports(@RequestBody ReportService.ReportQueryRequest queryRequest) {
         List<Map<String, Object>> data = reportService.getAggregatedReportData(queryRequest);
         return ResponseEntity.ok(data);
     }
 
-
     @PostMapping("/reports/export")
     public ResponseEntity<byte[]> exportReports(@RequestBody ReportService.ReportQueryRequest queryRequest) throws IOException {
-        // Fetch all data matching the filters (no pagination for export)
-        ReportService.ReportQueryRequest exportQuery = new ReportService.ReportQueryRequest();
-        exportQuery.setStartDate(queryRequest.getStartDate());
-        exportQuery.setEndDate(queryRequest.getEndDate());
-        exportQuery.setMobileAppNames(queryRequest.getMobileAppNames());
-        exportQuery.setInventoryFormatNames(queryRequest.getInventoryFormatNames());
-        exportQuery.setOperatingSystemVersionNames(queryRequest.getOperatingSystemVersionNames());
-        exportQuery.setSearchQuery(queryRequest.getSearchQuery());
-        exportQuery.setGroupByDimensions(queryRequest.getGroupByDimensions()); 
-        exportQuery.setMetrics(queryRequest.getMetrics());
-
-        List<Map<String, Object>> dataToExport = reportService.getAggregatedReportData(exportQuery); 
+        List<Map<String, Object>> dataToExport = reportService.getAggregatedReportData(queryRequest);
 
         StringWriter writer = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(writer)) {
-        
             List<String> headers = new ArrayList<>();
             if (!dataToExport.isEmpty()) {
-                headers.addAll(dataToExport.get(0).keySet()); 
+                headers.addAll(dataToExport.get(0).keySet());
             }
             csvWriter.writeNext(headers.toArray(new String[0]));
 
-            
             for (Map<String, Object> row : dataToExport) {
                 List<String> rowValues = new ArrayList<>();
                 for (String header : headers) {
                     Object value = row.get(header);
                     if (value instanceof LocalDate) {
                         rowValues.add(((LocalDate) value).format(DateTimeFormatter.ISO_LOCAL_DATE));
-                    } else if (value != null) {
-                        rowValues.add(value.toString());
                     } else {
-                        rowValues.add("");
+                        rowValues.add(value != null ? value.toString() : "");
                     }
                 }
                 csvWriter.writeNext(rowValues.toArray(new String[0]));
