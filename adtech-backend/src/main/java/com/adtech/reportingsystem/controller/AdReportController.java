@@ -90,15 +90,15 @@ public class AdReportController {
 
         StringWriter writer = new StringWriter();
         try (CSVWriter csvWriter = new CSVWriter(writer)) {
-            List<String> headers = new ArrayList<>();
+            List<String> csvHeaders = new ArrayList<>();
             if (!dataToExport.isEmpty()) {
-                headers.addAll(dataToExport.get(0).keySet());
+                csvHeaders.addAll(dataToExport.get(0).keySet());
             }
-            csvWriter.writeNext(headers.toArray(new String[0]));
+            csvWriter.writeNext(csvHeaders.toArray(new String[0]));
 
             for (Map<String, Object> row : dataToExport) {
                 List<String> rowValues = new ArrayList<>();
-                for (String header : headers) {
+                for (String header : csvHeaders) {
                     Object value = row.get(header);
                     if (value instanceof LocalDate) {
                         rowValues.add(((LocalDate) value).format(DateTimeFormatter.ISO_LOCAL_DATE));
@@ -110,11 +110,11 @@ public class AdReportController {
             }
         }
 
-        byte[] csvBytes = writer.toString().getBytes("UTF-8");
+        byte[] csvBytes = writer.toString().getBytes(StandardCharsets.UTF_8);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.parseMediaType("text/csv"));
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"adtech_report.csv\"");
+        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=adtech_report.csv");
         headers.setContentLength(csvBytes.length);
 
         return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
