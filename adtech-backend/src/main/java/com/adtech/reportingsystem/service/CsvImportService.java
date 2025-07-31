@@ -1,3 +1,6 @@
+
+
+
 // package com.adtech.reportingsystem.service;
 
 // import com.adtech.reportingsystem.model.AdReportData;
@@ -6,8 +9,13 @@
 // import com.opencsv.exceptions.CsvValidationException;
 // import org.springframework.beans.factory.annotation.Autowired;
 // import org.springframework.stereotype.Service;
-// import org.springframework.transaction.annotation.Transactional;
+// import org.springframework.transaction.PlatformTransactionManager; // Import this
+// import org.springframework.transaction.TransactionStatus;          // Import this
+// import org.springframework.transaction.support.DefaultTransactionDefinition; // Import this
 // import org.springframework.web.multipart.MultipartFile;
+// import org.slf4j.Logger; // Import Logger
+// import org.slf4j.LoggerFactory; // Import LoggerFactory
+
 
 // import java.io.BufferedReader;
 // import java.io.IOException;
@@ -18,31 +26,44 @@
 // import java.util.List;
 // import java.util.concurrent.ExecutorService;
 // import java.util.concurrent.Executors;
-
 // import java.util.concurrent.atomic.AtomicLong;
+// import java.util.concurrent.ConcurrentHashMap; // Explicit import
 
 // @Service
 // public class CsvImportService {
 
+//     private static final Logger logger = LoggerFactory.getLogger(CsvImportService.class); // Initialize logger
+
 //     @Autowired
 //     private AdReportDataRepository adReportDataRepository;
 
-//     private final ExecutorService executorService = Executors.newFixedThreadPool(5); 
-//     private final AtomicLong importJobCounter = new AtomicLong();
-//     private final java.util.Map<Long, String> importStatusMap = new java.util.concurrent.ConcurrentHashMap<>();
+//     @Autowired
+//     private PlatformTransactionManager transactionManager; // Inject PlatformTransactionManager
 
-//     @Transactional
+//     private final ExecutorService executorService = Executors.newFixedThreadPool(5);
+//     private final AtomicLong importJobCounter = new AtomicLong();
+//     private final ConcurrentHashMap<Long, String> importStatusMap = new ConcurrentHashMap<>(); // Use ConcurrentHashMap explicitly
+
 //     public Long importCsvData(MultipartFile file) throws IOException {
 //         long jobId = importJobCounter.incrementAndGet();
 //         importStatusMap.put(jobId, "IN_PROGRESS");
+//         logger.info("Import job {} initiated. Status: IN_PROGRESS.", jobId);
+
+//         // Capture file data to be used in the async thread to avoid issues with closing streams
+//         byte[] fileBytes = file.getBytes();
+//         String originalFilename = file.getOriginalFilename();
+//         String contentType = file.getContentType();
 
 //         executorService.submit(() -> {
-//             try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()));
+//             TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition()); // Start new transaction
+//             try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.ByteArrayInputStream(fileBytes)));
 //                  CSVReader csvReader = new CSVReader(reader)) {
 
 //                 String[] header = csvReader.readNext();
 //                 if (header == null || header.length == 0) {
 //                     importStatusMap.put(jobId, "FAILED: Empty file or no header.");
+//                     logger.warn("Import job {} FAILED: Empty file or no header. Filename: {}", jobId, originalFilename);
+//                     transactionManager.rollback(status); // Rollback if header is missing
 //                     return;
 //                 }
 
@@ -54,13 +75,14 @@
 
 //                 if (!List.of(header).containsAll(expectedHeaders)) {
 //                     importStatusMap.put(jobId, "FAILED: CSV header mismatch. Expected: " + expectedHeaders);
+//                     logger.error("Import job {} FAILED: CSV header mismatch. Expected: {}. Found: {}", jobId, expectedHeaders, List.of(header));
+//                     transactionManager.rollback(status); // Rollback if headers don't match
 //                     return;
 //                 }
 
-
 //                 String[] line;
 //                 List<AdReportData> batch = new ArrayList<>();
-//                 final int BATCH_SIZE = 5000; 
+//                 final int BATCH_SIZE = 5000;
 
 //                 long processedRecords = 0;
 //                 long errorRecords = 0;
@@ -72,28 +94,36 @@
 //                         if (batch.size() >= BATCH_SIZE) {
 //                             adReportDataRepository.saveAll(batch);
 //                             batch.clear();
+//                             logger.debug("Import job {}: Saved a batch of {} records. Total processed: {}", jobId, BATCH_SIZE, processedRecords + BATCH_SIZE);
 //                         }
 //                         processedRecords++;
 //                     } catch (Exception e) {
-//                         System.err.println("Error parsing CSV line: " + String.join(",", line) + " - " + e.getMessage());
+//                         logger.error("Import job {}: Error parsing CSV line: {} - {}", jobId, String.join(",", line), e.getMessage(), e);
 //                         errorRecords++;
-                        
+//                         // Continue processing other lines
 //                     }
 //                 }
 //                 if (!batch.isEmpty()) {
-//                     adReportDataRepository.saveAll(batch); 
+//                     adReportDataRepository.saveAll(batch); // Save any remaining records
+//                     logger.debug("Import job {}: Saved final batch of {} records. Total processed: {}", jobId, batch.size(), processedRecords);
 //                 }
+
 //                 importStatusMap.put(jobId, String.format("COMPLETED: Processed %d records, %d errors.", processedRecords, errorRecords));
+//                 logger.info("Import job {} COMPLETED. Processed {} records, {} errors.", jobId, processedRecords, errorRecords);
+//                 transactionManager.commit(status); // Commit the transaction if successful
 
 //             } catch (CsvValidationException e) {
 //                 importStatusMap.put(jobId, "FAILED: CSV format validation error - " + e.getMessage());
-//                 System.err.println("CSV validation error for job " + jobId + ": " + e.getMessage());
+//                 logger.error("Import job {} FAILED: CSV validation error: {}", jobId, e.getMessage(), e);
+//                 transactionManager.rollback(status); // Rollback on CSV validation error
 //             } catch (IOException e) {
 //                 importStatusMap.put(jobId, "FAILED: I/O error during file processing - " + e.getMessage());
-//                 System.err.println("I/O error for job " + jobId + ": " + e.getMessage());
-//             } catch (Exception e) {
+//                 logger.error("Import job {} FAILED: I/O error: {}", jobId, e.getMessage(), e);
+//                 transactionManager.rollback(status); // Rollback on I/O error
+//             } catch (Exception e) { // Catch any other unexpected exceptions during async processing
 //                 importStatusMap.put(jobId, "FAILED: An unexpected error occurred - " + e.getMessage());
-//                 System.err.println("Unexpected error for job " + jobId + ": " + e.getMessage());
+//                 logger.error("Import job {} FAILED: An unexpected error occurred: {}", jobId, e.getMessage(), e);
+//                 transactionManager.rollback(status); // Rollback on any other unexpected error
 //             }
 //         });
 
@@ -134,7 +164,7 @@
 //                         data.setOperatingSystemVersionName(value);
 //                         break;
 //                     case "date":
-//                         data.setDate(LocalDate.parse(value)); 
+//                         data.setDate(LocalDate.parse(value));
 //                         break;
 //                     case "ad_exchange_total_requests":
 //                         data.setAdExchangeTotalRequests(Long.parseLong(value));
@@ -161,9 +191,13 @@
 //                         data.setPayout(Double.parseDouble(value));
 //                         break;
 //                     default:
+//                         // Log unexpected column names if necessary
 //                         break;
 //                 }
 //             } catch (NumberFormatException | DateTimeParseException e) {
+//                 // Log the exact line content causing the error
+//                 logger.error("Data type mismatch error for job {}. Column '{}' with value '{}' in line {}: {}",
+//                         data.getId(), colName, value, String.join(",", line), e.getMessage(), e);
 //                 throw new IllegalArgumentException("Data type mismatch for column '" + colName + "' with value '" + value + "': " + e.getMessage(), e);
 //             }
 //         }
@@ -171,23 +205,21 @@
 //     }
 // }
 
-
-
 package com.adtech.reportingsystem.service;
 
 import com.adtech.reportingsystem.model.AdReportData;
 import com.adtech.reportingsystem.repository.AdReportDataRepository;
 import com.opencsv.CSVReader;
 import com.opencsv.exceptions.CsvValidationException;
+import jakarta.annotation.PreDestroy; // Import for @PreDestroy
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager; // Import this
-import org.springframework.transaction.TransactionStatus;          // Import this
-import org.springframework.transaction.support.DefaultTransactionDefinition; // Import this
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.web.multipart.MultipartFile;
-import org.slf4j.Logger; // Import Logger
-import org.slf4j.LoggerFactory; // Import LoggerFactory
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -195,26 +227,52 @@ import java.io.InputStreamReader;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashMap; // Import HashMap
 import java.util.List;
+import java.util.Map; // Import Map
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit; // Import TimeUnit
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.ConcurrentHashMap; // Explicit import
 
 @Service
 public class CsvImportService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CsvImportService.class); // Initialize logger
+    private static final Logger logger = LoggerFactory.getLogger(CsvImportService.class);
 
     @Autowired
     private AdReportDataRepository adReportDataRepository;
 
     @Autowired
-    private PlatformTransactionManager transactionManager; // Inject PlatformTransactionManager
+    private PlatformTransactionManager transactionManager;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(5);
     private final AtomicLong importJobCounter = new AtomicLong();
-    private final ConcurrentHashMap<Long, String> importStatusMap = new ConcurrentHashMap<>(); // Use ConcurrentHashMap explicitly
+    private final ConcurrentHashMap<Long, String> importStatusMap = new ConcurrentHashMap<>();
+
+    // Define a mapping from common CSV headers to your internal snake_case headers
+    private static final Map<String, String> HEADER_MAPPING = new HashMap<>();
+    static {
+        HEADER_MAPPING.put("App ID", "mobile_app_resolved_id");
+        HEADER_MAPPING.put("App Name", "mobile_app_name");
+        HEADER_MAPPING.put("Domain", "domain");
+        HEADER_MAPPING.put("Ad Unit", "ad_unit_name");
+        HEADER_MAPPING.put("Ad Unit ID", "ad_unit_id");
+        HEADER_MAPPING.put("Inventory Format", "inventory_format_name");
+        HEADER_MAPPING.put("OS Version", "operating_system_version_name");
+        HEADER_MAPPING.put("Date", "date");
+        HEADER_MAPPING.put("Total Requests", "ad_exchange_total_requests");
+        HEADER_MAPPING.put("Responses Served", "ad_exchange_responses_served");
+        HEADER_MAPPING.put("Match Rate", "ad_exchange_match_rate");
+        HEADER_MAPPING.put("Impressions", "ad_exchange_line_item_level_impressions");
+        HEADER_MAPPING.put("Clicks", "ad_exchange_line_item_level_clicks");
+        HEADER_MAPPING.put("CTR", "ad_exchange_line_item_level_ctr");
+        HEADER_MAPPING.put("Average eCPM", "average_ecpm");
+        HEADER_MAPPING.put("Payout", "payout");
+        // Add any other variations you might encounter
+    }
+
 
     public Long importCsvData(MultipartFile file) throws IOException {
         long jobId = importJobCounter.incrementAndGet();
@@ -224,10 +282,10 @@ public class CsvImportService {
         // Capture file data to be used in the async thread to avoid issues with closing streams
         byte[] fileBytes = file.getBytes();
         String originalFilename = file.getOriginalFilename();
-        String contentType = file.getContentType();
+        // String contentType = file.getContentType(); // Not used, can be removed if not needed elsewhere
 
         executorService.submit(() -> {
-            TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition()); // Start new transaction
+            TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(new java.io.ByteArrayInputStream(fileBytes)));
                  CSVReader csvReader = new CSVReader(reader)) {
 
@@ -235,8 +293,15 @@ public class CsvImportService {
                 if (header == null || header.length == 0) {
                     importStatusMap.put(jobId, "FAILED: Empty file or no header.");
                     logger.warn("Import job {} FAILED: Empty file or no header. Filename: {}", jobId, originalFilename);
-                    transactionManager.rollback(status); // Rollback if header is missing
+                    transactionManager.rollback(status);
                     return;
+                }
+
+                // Transform the actual headers found in the CSV using the mapping
+                String[] mappedHeader = new String[header.length];
+                for (int i = 0; i < header.length; i++) {
+                    String trimmedHeader = header[i].trim();
+                    mappedHeader[i] = HEADER_MAPPING.getOrDefault(trimmedHeader, trimmedHeader);
                 }
 
                 List<String> expectedHeaders = List.of("mobile_app_resolved_id", "mobile_app_name", "domain",
@@ -245,10 +310,12 @@ public class CsvImportService {
                         "ad_exchange_line_item_level_impressions", "ad_exchange_line_item_level_clicks",
                         "ad_exchange_line_item_level_ctr", "average_ecpm", "payout");
 
-                if (!List.of(header).containsAll(expectedHeaders)) {
+                // Check if all expected headers are present in the mapped headers
+                // Convert mappedHeader array to a List for containsAll check
+                if (!List.of(mappedHeader).containsAll(expectedHeaders)) {
                     importStatusMap.put(jobId, "FAILED: CSV header mismatch. Expected: " + expectedHeaders);
-                    logger.error("Import job {} FAILED: CSV header mismatch. Expected: {}. Found: {}", jobId, expectedHeaders, List.of(header));
-                    transactionManager.rollback(status); // Rollback if headers don't match
+                    logger.error("Import job {} FAILED: CSV header mismatch. Expected: {}. Found (after mapping): {}", jobId, expectedHeaders, List.of(mappedHeader));
+                    transactionManager.rollback(status);
                     return;
                 }
 
@@ -261,7 +328,8 @@ public class CsvImportService {
 
                 while ((line = csvReader.readNext()) != null) {
                     try {
-                        AdReportData data = parseCsvLine(line, header);
+                        // Pass the mappedHeader to parseCsvLine
+                        AdReportData data = parseCsvLine(line, mappedHeader);
                         batch.add(data);
                         if (batch.size() >= BATCH_SIZE) {
                             adReportDataRepository.saveAll(batch);
@@ -282,20 +350,20 @@ public class CsvImportService {
 
                 importStatusMap.put(jobId, String.format("COMPLETED: Processed %d records, %d errors.", processedRecords, errorRecords));
                 logger.info("Import job {} COMPLETED. Processed {} records, {} errors.", jobId, processedRecords, errorRecords);
-                transactionManager.commit(status); // Commit the transaction if successful
+                transactionManager.commit(status);
 
             } catch (CsvValidationException e) {
                 importStatusMap.put(jobId, "FAILED: CSV format validation error - " + e.getMessage());
                 logger.error("Import job {} FAILED: CSV validation error: {}", jobId, e.getMessage(), e);
-                transactionManager.rollback(status); // Rollback on CSV validation error
+                transactionManager.rollback(status);
             } catch (IOException e) {
                 importStatusMap.put(jobId, "FAILED: I/O error during file processing - " + e.getMessage());
                 logger.error("Import job {} FAILED: I/O error: {}", jobId, e.getMessage(), e);
-                transactionManager.rollback(status); // Rollback on I/O error
-            } catch (Exception e) { // Catch any other unexpected exceptions during async processing
+                transactionManager.rollback(status);
+            } catch (Exception e) {
                 importStatusMap.put(jobId, "FAILED: An unexpected error occurred - " + e.getMessage());
                 logger.error("Import job {} FAILED: An unexpected error occurred: {}", jobId, e.getMessage(), e);
-                transactionManager.rollback(status); // Rollback on any other unexpected error
+                transactionManager.rollback(status);
             }
         });
 
@@ -306,10 +374,11 @@ public class CsvImportService {
         return importStatusMap.getOrDefault(jobId, "NOT_FOUND");
     }
 
-    private AdReportData parseCsvLine(String[] line, String[] header) {
+    // This method will now receive the *mapped* header names
+    private AdReportData parseCsvLine(String[] line, String[] mappedHeader) {
         AdReportData data = new AdReportData();
-        for (int i = 0; i < header.length; i++) {
-            String colName = header[i].trim();
+        for (int i = 0; i < mappedHeader.length; i++) {
+            String colName = mappedHeader[i].trim(); // Use the mapped header name
             String value = line[i].trim();
 
             try {
@@ -363,16 +432,35 @@ public class CsvImportService {
                         data.setPayout(Double.parseDouble(value));
                         break;
                     default:
-                        // Log unexpected column names if necessary
+                        // Log unexpected column names if necessary.
+                        // This case will now handle headers that are not in expectedHeaders AND not in HEADER_MAPPING.
+                        logger.warn("Import job {}: Encountered unexpected column '{}' with value '{}'. Skipping.",
+                                colName, value); // Removed data.getId() as it's null here
                         break;
                 }
             } catch (NumberFormatException | DateTimeParseException e) {
                 // Log the exact line content causing the error
                 logger.error("Data type mismatch error for job {}. Column '{}' with value '{}' in line {}: {}",
-                        data.getId(), colName, value, String.join(",", line), e.getMessage(), e);
+                        "N/A", colName, value, String.join(",", line), e.getMessage(), e); // Changed data.getId() to "N/A"
                 throw new IllegalArgumentException("Data type mismatch for column '" + colName + "' with value '" + value + "': " + e.getMessage(), e);
             }
         }
         return data;
+    }
+
+    @PreDestroy
+    public void shutdownExecutor() {
+        logger.info("Shutting down CSV import executor service.");
+        executorService.shutdown(); // Initiates an orderly shutdown in which previously submitted tasks are executed, but no new tasks will be accepted.
+        try {
+            if (!executorService.awaitTermination(60, TimeUnit.SECONDS)) { // Wait for existing tasks to terminate
+                executorService.shutdownNow(); // Forcefully shut down if tasks don't terminate
+                logger.warn("CSV import executor service did not terminate in time, forcing shutdown.");
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt(); // Restore interrupt status
+            logger.warn("CSV import executor service shutdown interrupted, forcing shutdown.");
+        }
     }
 }
