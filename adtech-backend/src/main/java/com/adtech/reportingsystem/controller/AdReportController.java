@@ -1,123 +1,126 @@
 package com.adtech.reportingsystem.controller;
 
 import com.adtech.reportingsystem.model.AdReportData;
-import com.adtech.reportingsystem.service.CsvImportService;
 import com.adtech.reportingsystem.service.ReportService;
-import com.opencsv.CSVWriter;
+import com.adtech.reportingsystem.service.CsvImportService;
+import com.adtech.reportingsystem.service.ReportService.ReportQueryRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import java.nio.charset.StandardCharsets;
 
-import java.io.IOException;
+import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api")
-@CrossOrigin(origins = "https://adtech-reporting-system-n1w9.vercel.app")  // Allow Vercel frontend
+@RequestMapping("/api/reports")
 public class AdReportController {
 
-    @Autowired
-    private CsvImportService csvImportService;
+    private static final Logger logger = LoggerFactory.getLogger(AdReportController.class);
 
     @Autowired
     private ReportService reportService;
 
-    @PostMapping("/data/import")
-    public ResponseEntity<?> uploadCsv(@RequestParam("file") MultipartFile file) {
+    @Autowired
+    private CsvImportService csvImportService;
+
+    @GetMapping("/dimensions")
+    public ResponseEntity<List<String>> getDimensions() {
+        logger.info("Fetching available dimensions.");
+        List<String> dimensions = reportService.getAvailableDimensions();
+        return ResponseEntity.ok(dimensions);
+    }
+
+    @GetMapping("/metrics")
+    public ResponseEntity<List<String>> getMetrics() {
+        logger.info("Fetching available metrics.");
+        List<String> metrics = reportService.getAvailableMetrics();
+        return ResponseEntity.ok(metrics);
+    }
+
+    @PostMapping("/query")
+    public ResponseEntity<Page<AdReportData>> queryReport(@RequestBody ReportQueryRequest queryRequest) {
+        logger.info("Received report query request: {}", queryRequest);
+        Page<AdReportData> reportPage = reportService.getReportData(queryRequest);
+        return ResponseEntity.ok(reportPage);
+    }
+
+    @PostMapping("/aggregate")
+    public ResponseEntity<List<Map<String, Object>>> aggregateReport(@RequestBody ReportQueryRequest queryRequest) {
+        logger.info("Received aggregation report query request: {}", queryRequest);
+        List<Map<String, Object>> aggregatedData = reportService.getAggregatedReportData(queryRequest);
+        return ResponseEntity.ok(aggregatedData);
+    }
+
+    @PostMapping("/export")
+    public ResponseEntity<String> exportReport(@RequestBody ReportQueryRequest queryRequest) {
+        logger.info("Received export report request: {}", queryRequest);
+        try {
+            StringWriter stringWriter = new StringWriter();
+            PrintWriter printWriter = new PrintWriter(stringWriter);
+
+            reportService.exportReport(queryRequest, printWriter);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("text/csv"));
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ad_report.csv\"");
+            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
+
+            return new ResponseEntity<>(stringWriter.toString(), headers, HttpStatus.OK);
+
+        } catch (Exception e) {
+            logger.error("Error during report export: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to export report: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/upload")
+    public ResponseEntity<String> uploadCsvFile(@RequestParam("file") MultipartFile file) {
+        logger.info("Received CSV file upload request: {}", file.getOriginalFilename());
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Please select a CSV file to upload.");
         }
-
-        String contentType = file.getContentType();
-        if (contentType == null || !(contentType.contains("csv") || contentType.equals("application/vnd.ms-excel"))) {
-            return ResponseEntity.badRequest().body("Invalid file type. Only CSV files are allowed.");
+        if (!"text/csv".equals(file.getContentType()) && !"application/vnd.ms-excel".equals(file.getContentType())) {
+            return ResponseEntity.badRequest().body("Only CSV files are allowed.");
         }
 
         try {
             Long jobId = csvImportService.importCsvData(file);
-            return ResponseEntity.ok(Map.of(
-                    "message", "CSV import initiated successfully.",
-                    "jobId", jobId
-            ));
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to upload CSV: " + e.getMessage());
+            return ResponseEntity.ok("CSV import started successfully with job ID: " + jobId + " for: " + file.getOriginalFilename());
         } catch (Exception e) {
+            logger.error("Error processing CSV file upload: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("An unexpected error occurred during CSV import: " + e.getMessage());
+                    .body("Failed to process CSV import: " + e.getMessage());
         }
     }
 
-    @GetMapping("/data/import/status/{jobId}")
-    public ResponseEntity<?> getImportStatus(@PathVariable Long jobId) {
-        String status = csvImportService.getImportStatus(jobId);
-        if ("NOT_FOUND".equals(status)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Import job not found.");
-        }
-        return ResponseEntity.ok(Map.of("jobId", jobId, "status", status));
+    @GetMapping("/distinct-mobile-app-names")
+    public ResponseEntity<List<String>> getDistinctMobileAppNames() {
+        logger.info("Fetching distinct mobile app names.");
+        List<String> appNames = reportService.getDistinctMobileAppNames();
+        return ResponseEntity.ok(appNames);
     }
 
-    @GetMapping("/reports/dimensions")
-    public ResponseEntity<List<String>> getDimensions() {
-        return ResponseEntity.ok(reportService.getAvailableDimensions());
+    @GetMapping("/distinct-inventory-format-names")
+    public ResponseEntity<List<String>> getDistinctInventoryFormatNames() {
+        logger.info("Fetching distinct inventory format names.");
+        List<String> formats = reportService.getDistinctInventoryFormatNames();
+        return ResponseEntity.ok(formats);
     }
 
-    @GetMapping("/reports/metrics")
-    public ResponseEntity<List<String>> getMetrics() {
-        return ResponseEntity.ok(reportService.getAvailableMetrics());
-    }
-
-    @PostMapping("/reports/query")
-    public ResponseEntity<Page<AdReportData>> queryReports(@RequestBody ReportService.ReportQueryRequest queryRequest) {
-        Page<AdReportData> data = reportService.getReportData(queryRequest);
-        return ResponseEntity.ok(data);
-    }
-
-    @PostMapping("/reports/aggregate")
-    public ResponseEntity<List<Map<String, Object>>> aggregateReports(@RequestBody ReportService.ReportQueryRequest queryRequest) {
-        List<Map<String, Object>> data = reportService.getAggregatedReportData(queryRequest);
-        return ResponseEntity.ok(data);
-    }
-
-    @PostMapping("/reports/export")
-    public ResponseEntity<byte[]> exportReports(@RequestBody ReportService.ReportQueryRequest queryRequest) throws IOException {
-        List<Map<String, Object>> dataToExport = reportService.getAggregatedReportData(queryRequest);
-
-        StringWriter writer = new StringWriter();
-        try (CSVWriter csvWriter = new CSVWriter(writer)) {
-            List<String> csvHeaders = new ArrayList<>();
-            if (!dataToExport.isEmpty()) {
-                csvHeaders.addAll(dataToExport.get(0).keySet());
-            }
-            csvWriter.writeNext(csvHeaders.toArray(new String[0]));
-
-            for (Map<String, Object> row : dataToExport) {
-                List<String> rowValues = new ArrayList<>();
-                for (String header : csvHeaders) {
-                    Object value = row.get(header);
-                    if (value instanceof LocalDate) {
-                        rowValues.add(((LocalDate) value).format(DateTimeFormatter.ISO_LOCAL_DATE));
-                    } else {
-                        rowValues.add(value != null ? value.toString() : "");
-                    }
-                }
-                csvWriter.writeNext(rowValues.toArray(new String[0]));
-            }
-        }
-
-        byte[] csvBytes = writer.toString().getBytes("UTF-8");
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("text/csv"));
-        headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"adtech_report.csv\"");
-        headers.setContentLength(csvBytes.length);
-
-        return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
+    @GetMapping("/distinct-operating-system-version-names")
+    public ResponseEntity<List<String>> getDistinctOperatingSystemVersionNames() {
+        logger.info("Fetching distinct operating system version names.");
+        List<String> osVersions = reportService.getDistinctOperatingSystemVersionNames();
+        return ResponseEntity.ok(osVersions);
     }
 }
