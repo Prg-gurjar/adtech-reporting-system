@@ -129,9 +129,7 @@ package com.adtech.reportingsystem.controller;
 
 import com.adtech.reportingsystem.model.AdReportData;
 import com.adtech.reportingsystem.service.ReportService;
-import com.adtech.reportingsystem.service.CsvImportService; // Ensure this import is correct
-import com.adtech.reportingsystem.service.ReportService.ReportQueryRequest;
-import com.adtech.reportingsystem.dto.AdReportDto;
+import com.adtech.reportingsystem.service.CsvImportService; 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -147,7 +145,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+
 
 @RestController
 @RequestMapping("/api/reports")
@@ -179,25 +177,9 @@ public class AdReportController {
     public ResponseEntity<Page<AdReportDto>> queryReport(@RequestBody ReportQueryRequest queryRequest) {
         logger.info("Received report query request: {}", queryRequest);
         Page<AdReportData> reportPage = reportService.getReportData(queryRequest);
-        Page<AdReportDto> dtoPage = reportPage.map(this::convertToDto);
-        return ResponseEntity.ok(dtoPage);
+        return ResponseEntity.ok(reportPage);
     }
 
-    private AdReportDto convertToDto(AdReportData adReportData) {
-        AdReportDto dto = new AdReportDto();
-        dto.setId(adReportData.getId());
-        dto.setMobileAppName(adReportData.getMobileAppName());
-        dto.setInventoryFormatName(adReportData.getInventoryFormatName());
-        dto.setOperatingSystemVersionName(adReportData.getOperatingSystemVersionName());
-        dto.setDate(adReportData.getDate());
-        dto.setTotalRequests(adReportData.getAdExchangeTotalRequests());
-        dto.setImpressions(adReportData.getAdExchangeLineItemLevelImpressions());
-        dto.setClicks(adReportData.getAdExchangeLineItemLevelClicks());
-        dto.setPayout(adReportData.getPayout());
-        dto.setAverageEcpm(adReportData.getAverageEcpm());
-        dto.setMatchRate(adReportData.getAdExchangeMatchRate());
-        return dto;
-    }
 
     @PostMapping("/aggregate")
     public ResponseEntity<List<Map<String, Object>>> aggregateReport(@RequestBody ReportQueryRequest queryRequest) {
@@ -218,7 +200,6 @@ public class AdReportController {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType("text/csv"));
             headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"ad_report.csv\"");
-            headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
 
             return new ResponseEntity<>(stringWriter.toString(), headers, HttpStatus.OK);
 
