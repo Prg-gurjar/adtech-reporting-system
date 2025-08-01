@@ -335,8 +335,8 @@ import { DownloadOutlined, UploadOutlined, SearchOutlined, FilterOutlined, Clear
 import type { TableProps } from 'antd';
 import {
   getDimensions, getMetrics, queryReport, aggregateReport, exportReport,
-  getDistinctMobileAppNames, getDistinctInventoryFormatNames, getDistinctOperatingSystemVersionNames, // NEW IMPORTS
-  ReportQueryRequest, AdReportDto // CRITICAL FIX: Changed AdReportData to AdReportDto
+  getDistinctMobileAppNames, getDistinctInventoryFormatNames, getDistinctOperatingSystemVersionNames,
+  ReportQueryRequest, AdReportDto // <--- CRITICAL FIX: Changed AdReportData to AdReportDto here
 } from '../api';
 import { debounce } from '../utils/debounce';
 import dayjs from 'dayjs';
@@ -350,7 +350,8 @@ interface DataType {
 }
 
 const ReportBuilderPage: React.FC = () => {
-  const [reportData, setReportData] = useState<AdReportDto[]>([]); // CRITICAL FIX: Changed AdReportData[] to AdReportDto[]
+  // <--- CRITICAL FIX: Changed AdReportData[] to AdReportDto[] here
+  const [reportData, setReportData] = useState<AdReportDto[]>([]);
   const [aggregatedData, setAggregatedData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalElements, setTotalElements] = useState(0);
@@ -430,12 +431,11 @@ const ReportBuilderPage: React.FC = () => {
         sortOrder: sortOrder,
       };
       const response = await queryReport(query);
-      setReportData(response.content);
+      setReportData(response.content); // This now correctly receives AdReportDto[]
       setTotalElements(response.totalElements);
       setCurrentPage(page);
       setPageSize(size);
 
-      // Also fetch aggregated data if needed
       const aggregateResponse = await aggregateReport(query);
       setAggregatedData(aggregateResponse);
 
@@ -510,7 +510,6 @@ const ReportBuilderPage: React.FC = () => {
     if (selectedFile) {
       setLoading(true);
       try {
-        // Assuming uploadCsvData returns a message or job ID
         const responseMessage = await uploadCsvData(selectedFile);
         notification.success({
           message: 'CSV Upload Initiated',
@@ -519,7 +518,6 @@ const ReportBuilderPage: React.FC = () => {
         });
         setIsUploadModalVisible(false);
         setSelectedFile(null);
-        // Optionally refetch report data after upload
         getReport(currentPage, pageSize);
       } catch (error) {
         console.error('Upload failed:', error);
@@ -549,24 +547,22 @@ const ReportBuilderPage: React.FC = () => {
     }
   };
 
-  const getColumns = (): TableProps<AdReportDto>['columns'] => { // CRITICAL FIX: Changed AdReportData to AdReportDto
+  // <--- CRITICAL FIX: Changed AdReportData to AdReportDto here
+  const getColumns = (): TableProps<AdReportDto>['columns'] => {
     if (reportData.length === 0) {
       return [];
     }
 
-    // Dynamically create columns based on the keys of the first data object
     const firstItem = reportData[0];
     return Object.keys(firstItem).map(key => ({
       title: formatColumnHeader(key),
       dataIndex: key,
       key: key,
-      sorter: true, // Enable sorting for all columns
+      sorter: true,
       render: (text: any) => {
-        // Format date columns
         if (key === 'date' && text) {
           return dayjs(text).format('YYYY-MM-DD');
         }
-        // Format numeric columns to 2 decimal places if they are metrics that usually have decimals
         if (typeof text === 'number' && (key.toLowerCase().includes('ecpm') || key.toLowerCase().includes('payout') || key.toLowerCase().includes('ctr') || key.toLowerCase().includes('rate'))) {
           return text.toFixed(2);
         }
@@ -576,7 +572,6 @@ const ReportBuilderPage: React.FC = () => {
   };
 
   const formatColumnHeader = (key: string): string => {
-    // Convert camelCase to "Title Case" for display
     return key.replace(/([A-Z])/g, ' $1')
       .replace(/^./, (str) => str.toUpperCase());
   };
@@ -592,11 +587,9 @@ const ReportBuilderPage: React.FC = () => {
       dataIndex: key,
       key: key,
       render: (text: any) => {
-        // Format date columns
         if (key === 'date' && text) {
           return dayjs(text).format('YYYY-MM-DD');
         }
-        // Format numeric columns to 2 decimal places if they are metrics that usually have decimals
         if (typeof text === 'number' && (key.toLowerCase().includes('ecpm') || key.toLowerCase().includes('payout') || key.toLowerCase().includes('ctr') || key.toLowerCase().includes('rate'))) {
           return text.toFixed(2);
         }
@@ -761,8 +754,8 @@ const ReportBuilderPage: React.FC = () => {
           <h2 style={{ marginTop: 24, marginBottom: 16 }}>Aggregated Report</h2>
           <Table
             columns={getAggregatedColumns()}
-            dataSource={aggregatedData.map((item, index) => ({ ...item, key: index }))} // Use index as key for aggregated data
-            pagination={false} // Aggregated data usually doesn't need pagination
+            dataSource={aggregatedData.map((item, index) => ({ ...item, key: index }))}
+            pagination={false}
             loading={loading}
             scroll={{ x: 'max-content' }}
             bordered
