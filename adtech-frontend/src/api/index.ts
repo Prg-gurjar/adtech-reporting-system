@@ -161,14 +161,9 @@
 //   const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
 //   return response.data;
 // };
-
 import axios from 'axios';
 import { message } from 'antd';
 
-// Determine the base URL based on environment variables
-// This is a more robust way to handle multiple environments.
-// In a production environment (e.g., Vercel), REACT_APP_API_URL should be set to your backend URL.
-// During local development, it will default to localhost.
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8091/api';
 
 const api = axios.create({
@@ -192,25 +187,20 @@ export interface ReportQueryRequest {
   sortOrder?: 'ASC' | 'DESC';
 }
 
-// CRITICAL FIX: This interface must match your backend's AdReportDto
-export interface AdReportDto { // Renamed from AdReportData for clarity
+// THIS IS THE FRONTEND'S BLUEPRINT FOR YOUR BACKEND'S AdReportDto
+// It MUST match the structure of your backend's com.adtech.reportingsystem.dto.AdReportDto.java
+export interface AdReportDto { // <--- This interface name is crucial for the frontend
   id: number;
   mobileAppName: string;
   inventoryFormatName: string;
   operatingSystemVersionName: string;
   date: string; // Assuming date is sent as YYYY-MM-DD string
-  totalRequests: number; // Matches backend AdReportDto field
-  impressions: number;   // Matches backend AdReportDto field
-  clicks: number;        // Matches backend AdReportDto field
+  totalRequests: number;
+  impressions: number;
+  clicks: number;
   payout: number;
   averageEcpm: number;
-  matchRate: number;     // Matches backend AdReportDto field
-
-  // If you need other fields from the original AdReportData entity that are NOT in AdReportDto,
-  // you'll need to decide if they should be added to AdReportDto on the backend,
-  // or if they are truly not needed on the frontend.
-  // For example, mobileAppResolvedId, domain, adUnitName, adUnitId are not in the DTO.
-  // If needed, add them to your backend AdReportDto and then here.
+  matchRate: number;
 }
 
 // --- API Functions ---
@@ -224,7 +214,7 @@ export const getMetrics = async (): Promise<string[]> => {
   return response.data;
 };
 
-// CRITICAL FIX: Updated return type to use AdReportDto
+// The queryReport function's return type now uses the AdReportDto interface
 export const queryReport = async (
   query: ReportQueryRequest
 ): Promise<{ content: AdReportDto[]; totalElements: number }> => {
@@ -259,7 +249,6 @@ export const exportReport = async (query: ReportQueryRequest): Promise<void> => 
   }
 };
 
-// Add a single, comprehensive response interceptor for global error handling
 api.interceptors.response.use(
   response => response,
   error => {
@@ -282,14 +271,12 @@ api.interceptors.response.use(
   }
 );
 
-// --- CSV Upload ---
-// CRITICAL FIX: Corrected endpoint to match backend controller mapping
 export const uploadCsvData = async (file: File): Promise<string> => {
   const formData: FormData = new FormData();
   formData.append('file', file);
 
   try {
-    const response = await api.post<string>('/reports/upload', formData, { // Changed from /data/import
+    const response = await api.post<string>('/reports/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -301,7 +288,6 @@ export const uploadCsvData = async (file: File): Promise<string> => {
   }
 };
 
-// NEW API FUNCTIONS to fetch distinct values for filters
 export const getDistinctMobileAppNames = async (): Promise<string[]> => {
   const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
   return response.data;
