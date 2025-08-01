@@ -336,7 +336,7 @@ import type { TableProps } from 'antd';
 import {
   getDimensions, getMetrics, queryReport, aggregateReport, exportReport,
   getDistinctMobileAppNames, getDistinctInventoryFormatNames, getDistinctOperatingSystemVersionNames,
-  ReportQueryRequest, AdReportDto // <--- CRITICAL FIX: Changed AdReportData to AdReportDto here
+  ReportQueryRequest
 } from '../api';
 import { debounce } from '../utils/debounce';
 import dayjs from 'dayjs';
