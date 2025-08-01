@@ -2,7 +2,7 @@ import axios from 'axios';
 import { message } from 'antd';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://adtech-reporting-system-n1w9.vercel.app',
   timeout: 60000, // 60 seconds timeout
 });
 
