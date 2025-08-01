@@ -1,6 +1,5 @@
 package com.adtech.reportingsystem.config;
 
-import org.springframework.beans.factory.annotation.Value; // Import Value annotation
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -8,13 +7,10 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
 
-    @Value("${cors.allowed-origins}")
-    private String[] allowedOrigins;
-
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins(allowedOrigins)  // ✅ Now using the injected values
+                .allowedOrigins("http://localhost:3000") 
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
