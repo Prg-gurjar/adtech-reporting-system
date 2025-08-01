@@ -1,21 +1,28 @@
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Typography, Card, Row, Col, Space, Select, Input, DatePicker, Button, Spin, Table, message
 } from 'antd';
 import {
   getDimensions, getMetrics, queryReport, aggregateReport, exportReport,
+  getDistinctMobileAppNames, getDistinctInventoryFormatNames, getDistinctOperatingSystemVersionNames, // NEW IMPORTS
   ReportQueryRequest, AdReportData
 } from '../api';
 import { debounce } from '../utils/debounce';
 import dayjs from 'dayjs';
 import type { RangePickerProps } from 'antd/lib/date-picker';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
-import axios from 'axios'; // Ensure axios is imported for error checking
+import type { SorterResult } from 'antd/es/table/interface';
+import axios from 'axios';
+import {
+  DollarCircleOutlined,
+  DashboardOutlined,
+  LineChartOutlined,
+  InteractionOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const { Search } = Input;
 const { RangePicker } = DatePicker;
 
 interface SummaryMetrics {
@@ -26,15 +33,20 @@ interface SummaryMetrics {
   averageEcpm: number;
 }
 
-// Define constants for page sizes
-const DEFAULT_PAGE_SIZE = 100; 
-const SEARCH_PAGE_SIZE = 10000;
+const DEFAULT_PAGE_SIZE = 100;
+const PAGE_SIZE_OPTIONS = ['10', '20', '50', '100'];
 
-export default function DashboardPage() {
+const DashboardPage = () => {
   const [availableDimensions, setAvailableDimensions] = useState<string[]>([]);
   const [availableMetrics, setAvailableMetrics] = useState<string[]>([]);
+
+  // NEW STATE VARIABLES for distinct filter options
+  const [distinctMobileAppNames, setDistinctMobileAppNames] = useState<string[]>([]);
+  const [distinctInventoryFormatNames, setDistinctInventoryFormatNames] = useState<string[]>([]);
+  const [distinctOperatingSystemVersionNames, setDistinctOperatingSystemVersionNames] = useState<string[]>([]);
+
   const [tableData, setTableData] = useState<AdReportData[]>([]);
-  const [totalRecords, setTotalRecords] = useState<number>(0); 
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
   const [summaryData, setSummaryData] = useState<SummaryMetrics>({
     totalRequests: 0,
@@ -48,7 +60,7 @@ export default function DashboardPage() {
     groupByDimensions: [],
     metrics: [],
     page: 1,
-    size: DEFAULT_PAGE_SIZE, // Initial default page size
+    size: DEFAULT_PAGE_SIZE,
     startDate: dayjs().subtract(30, 'days').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     mobileAppNames: [],
@@ -59,53 +71,57 @@ export default function DashboardPage() {
     sortOrder: undefined,
   });
 
-  // --- Helper functions for available dimensions/metrics (moved to top) ---
-  // These are static lists for frontend UI, wrapped in useCallback for memoization
-  const getAvailableDimensions = useCallback(() => {
-    return ["mobileAppResolvedId", "mobileAppName", "domain", "adUnitName", "adUnitId", "inventoryFormatName", "operatingSystemVersionName", "date"];
-  }, []);
-
-  const getAvailableMetrics = useCallback(() => {
-    return ["adExchangeTotalRequests", "adExchangeResponsesServed", "adExchangeMatchRate", "adExchangeLineItemLevelImpressions", "adExchangeLineItemLevelClicks", "adExchangeLineItemLevelCtr", "averageEcpm", "payout"];
-  }, []);
-
-
-  // --- API Calls for Dimensions and Metrics (run once) ---
+  // --- API Calls for Dimensions, Metrics, and Distinct Filter Options (run once) ---
   useEffect(() => {
-    getDimensions().then(res => setAvailableDimensions(res || [])).catch(err => console.error("Error fetching dimensions:", err));
-    getMetrics().then(res => setAvailableMetrics(res || [])).catch(err => console.error("Error fetching metrics:", err));
-  }, []);
-  // Empty dependency array means this runs once on mount
+    const fetchInitialData = async () => {
+      try {
+        const [dims, mets, appNames, inventoryFormats, osVersions] = await Promise.all([
+          getDimensions(),
+          getMetrics(),
+          getDistinctMobileAppNames(), // Fetch distinct app names
+          getDistinctInventoryFormatNames(), // Fetch distinct inventory formats
+          getDistinctOperatingSystemVersionNames(), // Fetch distinct OS versions
+        ]);
+        setAvailableDimensions(dims || []);
+        setAvailableMetrics(mets || []);
+        setDistinctMobileAppNames(appNames || []);
+        setDistinctInventoryFormatNames(inventoryFormats || []);
+        setDistinctOperatingSystemVersionNames(osVersions || []);
+      } catch (err) {
+        message.error('Failed to fetch initial data (dimensions, metrics, or filter options).');
+        console.error("Error fetching initial data:", err);
+      }
+    };
+    fetchInitialData();
+  }, []); // Empty dependency array means this runs once on mount
 
   // --- Data Fetching Logic (debounced and memoized) ---
-  // This effect will re-run whenever queryParams changes
   const fetchReportData = useCallback(debounce(async (params: ReportQueryRequest) => {
     setLoading(true);
     try {
-      // Adjust the 'size' parameter based on whether a search query is active
-      const request: ReportQueryRequest = {
-        ...params,
-        size: params.searchQuery ? SEARCH_PAGE_SIZE : params.size,
-      };
-      const response = await queryReport(request);
+      const response = await queryReport(params);
       setTableData(response.content || []);
-      setTotalRecords(response.totalElements || 0); 
+      setTotalRecords(response.totalElements || 0);
     } catch (error) {
       console.error("Error fetching report data:", error);
       if (axios.isAxiosError(error) && error.response) {
         console.error("Backend Error Response (Report Data):", error.response.data);
+        message.error(`Error fetching report data: ${error.response.data.message || 'Unknown error'}`);
+      } else {
+        message.error('Failed to fetch report data. Please check network.');
       }
       setTableData([]);
       setTotalRecords(0);
     } finally {
       setLoading(false);
     }
-  }, 500), []); 
-  // Debounce to prevent excessive API calls on rapid filter changes
+  }, 500), []);
 
   const fetchSummaryData = useCallback(debounce(async (params: ReportQueryRequest) => {
+    // Only fetch summary if availableMetrics are loaded
+    if (availableMetrics.length === 0) return;
+
     try {
-      // For summary, we always want aggregate based on all available metrics
       const request: ReportQueryRequest = {
         startDate: params.startDate,
         endDate: params.endDate,
@@ -113,11 +129,10 @@ export default function DashboardPage() {
         inventoryFormatNames: params.inventoryFormatNames,
         operatingSystemVersionNames: params.operatingSystemVersionNames,
         searchQuery: params.searchQuery,
-        metrics: getAvailableMetrics(),
-        groupByDimensions: [], 
+        metrics: availableMetrics, // Use all available metrics for summary
+        groupByDimensions: [], // No grouping for overall summary
         page: 1,
-        size: 1 
-        // For aggregate, we only need 1 result (the overall aggregate)
+        size: 1 // Only need one row for total summary
       };
       const response = await aggregateReport(request);
       if (response && response.length > 0) {
@@ -136,74 +151,50 @@ export default function DashboardPage() {
       console.error("Error fetching summary data:", error);
       if (axios.isAxiosError(error) && error.response) {
         console.error("Backend Error Response (Summary Data):", error.response.data);
+        message.error(`Error fetching summary data: ${error.response.data.message || 'Unknown error'}`);
+      } else {
+        message.error('Failed to fetch summary data. Please check network.');
       }
       setSummaryData({ totalRequests: 0, totalImpressions: 0, totalClicks: 0, totalPayout: 0, averageEcpm: 0 });
     }
-  }, 500), [getAvailableMetrics]); 
-  // Dependency on getAvailableMetrics is now correctly defined
+  }, 500), [availableMetrics]); // Dependency on availableMetrics
 
-
-  // This useEffect triggers the data fetching whenever queryParams changes
   useEffect(() => {
-    fetchReportData(queryParams);
-    fetchSummaryData(queryParams);
-  }, [queryParams, fetchReportData, fetchSummaryData]);
-  // CRITICAL: queryParams is the dependency
+    // Trigger data fetching only when dimensions and metrics are loaded
+    if (availableDimensions.length > 0 && availableMetrics.length > 0) {
+      fetchReportData(queryParams);
+      fetchSummaryData(queryParams);
+    }
+  }, [queryParams, availableDimensions, availableMetrics, fetchReportData, fetchSummaryData]);
 
-  // --- Handlers for Filters and Table ---
+  // --- Consolidated Handlers for Filters and Table ---
+  const updateQueryParams = useCallback((newValues: Partial<ReportQueryRequest>) => {
+    setQueryParams(prev => ({ ...prev, page: 1, ...newValues }));
+  }, []);
+
   const handleDateRangeChange: RangePickerProps['onChange'] = (dates, dateStrings) => {
-    setQueryParams(prev => ({
-      ...prev,
-      startDate: dateStrings[0],
-      endDate: dateStrings[1],
-      page: 1, // Reset to first page on filter change
-    }));
+    updateQueryParams({ startDate: dateStrings[0], endDate: dateStrings[1] });
   };
 
   const handleMultiSelectChange = (field: keyof ReportQueryRequest) => (values: string[]) => {
-    setQueryParams(prev => ({
-      ...prev,
-      [field]: values,
-      page: 1, 
-    }));
-  };
-
-  const handleSearch = (value: string) => {
-    setQueryParams(prev => ({
-      ...prev,
-      searchQuery: value || undefined, 
-      // Set to undefined if empty string
-      page: 1, 
-      // Reset to first page on filter change
-      size: value ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE, 
-      // Adjust size based on search query presence
-    }));
+    updateQueryParams({ [field]: values });
   };
 
   const handleDynamicSelectChange = (field: 'groupByDimensions' | 'metrics') => (values: string[]) => {
-    setQueryParams(prev => ({
-      ...prev,
-      [field]: values,
-      page: 1, 
-    }));
+    updateQueryParams({ [field]: values });
   };
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
-    filters: any, 
-    // Ant Design filters (not used in your current backend query logic directly)
-    sorter: any 
-    // Ant Design sorter
+    filters: any,
+    sorter: SorterResult<AdReportData> | SorterResult<AdReportData>[]
   ) => {
     const newPage = Math.max(1, pagination.current || 1);
-    // Allow page size up to SEARCH_PAGE_SIZE if search is active, otherwise cap at DEFAULT_PAGE_SIZE
-    const maxAllowedSize = queryParams.searchQuery ? SEARCH_PAGE_SIZE : DEFAULT_PAGE_SIZE;
-    const newSize = Math.min(Math.max(1, pagination.pageSize || 10), maxAllowedSize);
+    const newSize = Math.max(1, pagination.pageSize || DEFAULT_PAGE_SIZE);
 
     let newSortBy: string | undefined = undefined;
     let newSortOrder: 'ASC' | 'DESC' | undefined = undefined;
-
-    if (sorter && sorter.field) {
+    if (sorter && !Array.isArray(sorter) && sorter.field) {
       newSortBy = sorter.field.toString();
       newSortOrder = sorter.order === 'ascend' ? 'ASC' : 'DESC';
     }
@@ -220,57 +211,60 @@ export default function DashboardPage() {
   const handleExportCsv = () => {
     const exportRequest: ReportQueryRequest = {
       ...queryParams,
-      // For export, we want all records matching the current filters, so use totalRecords
-      size: totalRecords > 0 ? totalRecords : 1, 
-      // Ensure size is at least 1 if totalRecords is 0
-      page: 1,
-      // Always export from the first page
+      size: totalRecords > 0 ? totalRecords : 1, // Export all filtered records
+      page: 1, // Always export from the first page
     };
     exportReport(exportRequest);
   };
 
+  // Apply Filters button handler
+  const handleApplyFilters = () => {
+    // This will trigger the useEffect to fetch data with current queryParams
+    // and reset pagination to page 1, size 100
+    setQueryParams(prev => ({
+      ...prev,
+      page: 1,
+      size: DEFAULT_PAGE_SIZE,
+    }));
+  };
+
+  // Reset Filters button handler
+  const handleResetFilters = () => {
+    const defaultParams = {
+      groupByDimensions: [],
+      metrics: [],
+      page: 1,
+      size: DEFAULT_PAGE_SIZE,
+      startDate: dayjs().subtract(30, 'days').format('YYYY-MM-DD'),
+      endDate: dayjs().format('YYYY-MM-DD'),
+      mobileAppNames: [],
+      inventoryFormatNames: [],
+      operatingSystemVersionNames: [],
+      searchQuery: undefined,
+      sortBy: undefined,
+      sortOrder: undefined,
+    };
+    setQueryParams(defaultParams);
+  };
+
   // --- Dynamic Column Generation for Table ---
-  const generateColumns = (data: AdReportData[]): ColumnsType<AdReportData> => {
-    if (data.length === 0) {
-      // If no data, return default columns or empty array
-      // For consistency, let's return columns based on selected dimensions/metrics if available,
-      // otherwise all available.
-      let keys: string[] = [];
-      if (queryParams.groupByDimensions && queryParams.groupByDimensions.length > 0) {
-        keys.push(...queryParams.groupByDimensions);
-      } else {
-        keys.push(...getAvailableDimensions());
-      }
-      if (queryParams.metrics && queryParams.metrics.length > 0) {
-        keys.push(...queryParams.metrics);
-      } else {
-        keys.push(...getAvailableMetrics());
-      }
-      keys = Array.from(new Set(keys)); // Remove duplicates
-
-      const emptyColumns = keys.filter(key => key !== 'id').map(key => ({
-        title: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
-        dataIndex: key,
-        key: key,
-        sorter: true,
-      }));
-      return [{ title: 'S.No.', key: 'serialNumber', width: 70, fixed: 'left', render: (text, record, index) => index + 1 }, ...emptyColumns];
+  const generateColumns = useCallback((): ColumnsType<AdReportData> => {
+    let keys: string[] = Array.from(new Set([...(queryParams.groupByDimensions || []), ...(queryParams.metrics || [])]));
+    if (keys.length === 0) {
+      keys = [...availableDimensions, ...availableMetrics];
     }
+    keys = keys.filter(key => key !== 'id');
 
-    // Use the keys from the first data object to generate columns
-    const allKeys = Object.keys(data[0]);
-    const displayKeys = allKeys.filter(key => key !== 'id');
-
-    const baseColumns = displayKeys.map(key => ({
-      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase()),
+    const baseColumns = keys.map(key => ({
+      title: key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()),
       dataIndex: key,
       key: key,
       sorter: true,
       render: (text: any) => {
         if (key === 'date') {
-          return dayjs(text).format('YYYY-MM-DD');
+          return text ? dayjs(text).format('YYYY-MM-DD') : '';
         }
-        if (typeof text === 'number' && (key.toLowerCase().includes('ecpm') || key.toLowerCase().includes('payout') || key.toLowerCase().includes('ctr') || key.toLowerCase().includes('rate'))) {
+        if (typeof text === 'number' && (['ecpm', 'payout', 'ctr', 'rate']).some(term => key.toLowerCase().includes(term))) {
           return text.toFixed(2);
         }
         return text;
@@ -286,214 +280,216 @@ export default function DashboardPage() {
     };
 
     return [serialNumberColumn, ...baseColumns];
-  };
+  }, [queryParams, availableDimensions, availableMetrics]);
 
-  // Memoize columns to prevent unnecessary re-renders
-  const columns = React.useMemo(() => generateColumns(tableData), [tableData, queryParams.page, queryParams.size, availableDimensions, availableMetrics]);
+  const columns = useMemo(() => generateColumns(), [generateColumns]);
 
-  // Determine pageSizeOptions dynamically
-  const getPageSizeOptions = () => {
-    if (queryParams.searchQuery) {
-      return ['10', '20', '50', '100', '1000', '10000']; 
-      // Include 10000 for search
-    } else {
-      return ['10', '20', '50', '100']; 
-      // Default options
-    }
-  };
-
-  // Determine the total for pagination dynamically
-  const getPaginationTotal = () => {
-    return totalRecords; 
-    // Showing actual total from backend
-  };
-
+  const getPaginationTotal = useMemo(() => {
+    return totalRecords;
+  }, [totalRecords]);
 
   // --- Render ---
   return (
-    <div style={{ padding: '20px' }}>
-      <Title level={2}>Ad Reporting Dashboard</Title>
+    <div style={{ padding: '24px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
+      <Title level={2} style={{ color: '#001529' }}>Ad Reporting Dashboard 📈</Title>
 
       {/* Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '20px' }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card title="Total Requests" bordered={false}>
-            <Text strong>{summaryData.totalRequests.toLocaleString()}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card title="Total Impressions" bordered={false}>
-            <Text strong>{summaryData.totalImpressions.toLocaleString()}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card title="Total Clicks" bordered={false}>
-            <Text strong>{summaryData.totalClicks.toLocaleString()}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card title="Total Payout" bordered={false}>
-            <Text strong>${summaryData.totalPayout.toFixed(2)}</Text>
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card title="Average eCPM" bordered={false}>
-            <Text strong>${summaryData.averageEcpm.toFixed(2)}</Text>
-          </Card>
-        </Col>
-      </Row>
+      <Card title={<Text strong>Summary Metrics</Text>} style={{ marginBottom: '24px' }}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card style={{ backgroundColor: '#e6f7ff' }}>
+              <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                <DashboardOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                <Text>Total Requests</Text>
+                <Text strong>{summaryData.totalRequests.toLocaleString()}</Text>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card style={{ backgroundColor: '#fffbe6' }}>
+              <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                <EyeOutlined style={{ fontSize: '24px', color: '#faad14' }} />
+                <Text>Impressions</Text>
+                <Text strong>{summaryData.totalImpressions.toLocaleString()}</Text>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card style={{ backgroundColor: '#f9f0ff' }}>
+              <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                <InteractionOutlined style={{ fontSize: '24px', color: '#9254de' }} />
+                <Text>Clicks</Text>
+                <Text strong>{summaryData.totalClicks.toLocaleString()}</Text>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card style={{ backgroundColor: '#e6fffb' }}>
+              <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                <DollarCircleOutlined style={{ fontSize: '24px', color: '#13c2c2' }} />
+                <Text>Total Payout</Text>
+                <Text strong>${summaryData.totalPayout.toFixed(2)}</Text>
+              </Space>
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={4}>
+            <Card style={{ backgroundColor: '#e6f7ff' }}>
+              <Space direction="vertical" align="center" style={{ width: '100%' }}>
+                <LineChartOutlined style={{ fontSize: '24px', color: '#1890ff' }} />
+                <Text>Avg. eCPM</Text>
+                <Text strong>${summaryData.averageEcpm.toFixed(2)}</Text>
+              </Space>
+            </Card>
+          </Col>
+        </Row>
+      </Card>
 
       {/* Advanced Reporting Interface */}
-      <Card title="Report Filters & Builder" style={{ marginBottom: '20px' }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          {/* Date Range Filter */}
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>Date Range:</Text></Col>
-            <Col span={18}>
-              <RangePicker
-                value={[queryParams.startDate ? dayjs(queryParams.startDate) : null, queryParams.endDate ? dayjs(queryParams.endDate) : null]}
-                onChange={handleDateRangeChange}
-                style={{ width: '100%' }}
-                format="YYYY-MM-DD"
-              />
-            </Col>
-          </Row>
-
-          {/* Dynamic Report Builder: Group By Dimensions */}
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>Group By:</Text></Col>
-            <Col span={18}>
-              <Select
-                mode="multiple"
-                placeholder="Select dimensions to group by"
-                value={queryParams.groupByDimensions}
-                onChange={handleDynamicSelectChange('groupByDimensions')}
-                style={{ width: '100%' }}
-                allowClear
-              >
-                {availableDimensions.map(dim => (
-                  <Option key={dim} value={dim}>{dim.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</Option>
-                ))}
-              </Select>
-            </Col>
-          </Row>
-
-          {/* Dynamic Report Builder: Metrics */}
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>Metrics:</Text></Col>
-            <Col span={18}>
-              <Select
-                mode="multiple"
-                placeholder="Select metrics to display"
-                value={queryParams.metrics}
-                onChange={handleDynamicSelectChange('metrics')}
-                style={{ width: '100%' }}
-                allowClear
-              >
-                {availableMetrics.map(metric => (
-                  <Option key={metric} value={metric}>{metric.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</Option>
-                ))}
-              </Select>
-            </Col>
-          </Row>
-
-          {/* Multi-Select Filters */}
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>App Names:</Text></Col>
-            <Col span={18}>
-              <Select
-                mode="multiple"
-                placeholder="Filter by app names"
-                value={queryParams.mobileAppNames}
-                onChange={handleMultiSelectChange('mobileAppNames')}
-                style={{ width: '100%' }}
-                allowClear
-              >
-                {/* These options should ideally come from backend distinct values */}
-                <Option value="Gangs Town Story: Grand Crime">Gangs Town Story: Grand Crime</Option>
-                <Option value="Funny Supermarket game">Funny Supermarket game</Option>
-                {/* ... add more options based on your data */}
-              </Select>
-            </Col>
-          </Row>
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>Inventory Formats:</Text></Col>
-            <Col span={18}>
-              <Select
-                mode="multiple"
-                placeholder="Filter by inventory formats"
-                value={queryParams.inventoryFormatNames}
-                onChange={handleMultiSelectChange('inventoryFormatNames')}
-                style={{ width: '100%' }}
-                allowClear
-              >
-                <Option value="Banner">Banner</Option>
-                <Option value="Rewarded">Rewarded</Option>
-                {/* ... add more options */}
-              </Select>
-            </Col>
-          </Row>
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>OS Versions:</Text></Col>
-            <Col span={18}>
-              <Select
-                mode="multiple"
-                placeholder="Filter by OS versions"
-                value={queryParams.operatingSystemVersionNames}
-                onChange={handleMultiSelectChange('operatingSystemVersionNames')}
-                style={{ width: '100%' }}
-                allowClear
-              >
-                <Option value="iOS 15.3">iOS 15.3</Option>
-                <Option value="iOS 16.7">iOS 16.7</Option>
-              </Select>
-            </Col>
-          </Row>
-
-          {/* Real-time Search */}
-          <Row gutter={16} align="middle">
-            <Col span={6}><Text strong>Search:</Text></Col>
-            <Col span={18}>
-              <Search
-                placeholder="Search across fields"
-                onSearch={handleSearch}
-                onChange={(e) => handleSearch(e.target.value)} // Live search as user types
-                style={{ width: '100%' }}
-                allowClear
-              />
-            </Col>
-          </Row>
-
-          {/* Action Buttons */}
-          <Row gutter={16} style={{ marginTop: '20px' }}>
-            <Col span={12}>
-              <Button type="primary" onClick={handleExportCsv} block>
-                Export Current Report CSV
+      <Card title={<Text strong>Report Filters & Builder</Text>} style={{ marginBottom: '24px' }}>
+        <Row gutter={[24, 24]}>
+          <Col xs={24} md={12}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>Date Range:</Text></Col>
+                <Col span={16}>
+                  <RangePicker
+                    value={[queryParams.startDate ? dayjs(queryParams.startDate) : null, queryParams.endDate ? dayjs(queryParams.endDate) : null]}
+                    onChange={handleDateRangeChange}
+                    style={{ width: '100%' }}
+                    format="YYYY-MM-DD"
+                  />
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>Dimensions:</Text></Col>
+                <Col span={16}>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select dimensions to group by"
+                    value={queryParams.groupByDimensions}
+                    onChange={handleDynamicSelectChange('groupByDimensions')}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    {availableDimensions.map(dim => (
+                      <Option key={dim} value={dim}>{dim.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>Metrics:</Text></Col>
+                <Col span={16}>
+                  <Select
+                    mode="multiple"
+                    placeholder="Select metrics to display"
+                    value={queryParams.metrics}
+                    onChange={handleDynamicSelectChange('metrics')}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    {availableMetrics.map(metric => (
+                      <Option key={metric} value={metric}>{metric.replace(/([A-Z])/g, ' $1').replace(/^./, (str) => str.toUpperCase())}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+            </Space>
+          </Col>
+          <Col xs={24} md={12}>
+            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>App Names:</Text></Col>
+                <Col span={16}>
+                  <Select
+                    mode="multiple"
+                    placeholder="Filter by app names"
+                    value={queryParams.mobileAppNames}
+                    onChange={handleMultiSelectChange('mobileAppNames')}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    {/* Dynamically populate options from distinctMobileAppNames */}
+                    {distinctMobileAppNames.map(appName => (
+                      <Option key={appName} value={appName}>{appName}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>Inventory Formats:</Text></Col>
+                <Col span={16}>
+                  <Select
+                    mode="multiple"
+                    placeholder="Filter by inventory formats"
+                    value={queryParams.inventoryFormatNames}
+                    onChange={handleMultiSelectChange('inventoryFormatNames')}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    {/* Dynamically populate options from distinctInventoryFormatNames */}
+                    {distinctInventoryFormatNames.map(format => (
+                      <Option key={format} value={format}>{format}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+              <Row gutter={16}>
+                <Col span={8}><Text strong>OS Versions:</Text></Col>
+                <Col span={16}>
+                  <Select
+                    mode="multiple"
+                    placeholder="Filter by OS versions"
+                    value={queryParams.operatingSystemVersionNames}
+                    onChange={handleMultiSelectChange('operatingSystemVersionNames')}
+                    style={{ width: '100%' }}
+                    allowClear
+                  >
+                    {/* Dynamically populate options from distinctOperatingSystemVersionNames */}
+                    {distinctOperatingSystemVersionNames.map(osVersion => (
+                      <Option key={osVersion} value={osVersion}>{osVersion}</Option>
+                    ))}
+                  </Select>
+                </Col>
+              </Row>
+            </Space>
+          </Col>
+        </Row>
+        {/* Buttons */}
+        <Row gutter={16} style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between' }}>
+          <Col>
+            <Space>
+              <Button onClick={handleResetFilters}>
+                Reset Filters
               </Button>
-            </Col>
-            {/* Save/Load Reports - Placeholder */}
-            <Col span={12}>
-              <Button onClick={() => message.info('Save/Load Report functionality coming soon!')} block>
-                Save/Load Report (Future)
+              <Button type="primary" onClick={handleApplyFilters}>
+                Apply Filters
               </Button>
-            </Col>
-          </Row>
-        </Space>
+            </Space>
+          </Col>
+          <Col>
+            <Space>
+              <Button type="primary" onClick={handleExportCsv}>
+                Export Report
+              </Button>
+            </Space>
+          </Col>
+        </Row>
       </Card>
 
       {/* Data Table */}
-      <Card title="Report Data" style={{ marginBottom: '20px' }}>
+      <Card title={<Text strong>Detailed Report Data</Text>}>
         <Spin spinning={loading}>
           <Table
             columns={columns}
-            dataSource={tableData} // This should now correctly reflect filtered data
+            dataSource={tableData}
             rowKey="id"
             pagination={{
               current: queryParams.page,
               pageSize: queryParams.size,
-              total: getPaginationTotal(), // Use dynamic total
+              total: getPaginationTotal,
               showSizeChanger: true,
-              pageSizeOptions: getPageSizeOptions(), // Use dynamic page size options
+              pageSizeOptions: PAGE_SIZE_OPTIONS,
               showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} items`,
             }}
             onChange={handleTableChange}
@@ -504,4 +500,6 @@ export default function DashboardPage() {
       </Card>
     </div>
   );
-}
+};
+
+export default DashboardPage;
