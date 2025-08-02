@@ -510,7 +510,6 @@ export interface AdReportData {
   averageEcpm: number;
   payout: number;
 }
-
 // NOTE: It's good practice to define a more specific type for aggregated data
 // as it may have different fields or formats than the raw data.
 // export interface AggregatedReportData {
