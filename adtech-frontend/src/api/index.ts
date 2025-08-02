@@ -472,7 +472,7 @@ import { message } from 'antd';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
-  timeout: 60000, // 60 seconds timeout
+  //timeout: 60000,
 });
 
 // --- API Interfaces ---
