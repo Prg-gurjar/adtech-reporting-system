@@ -161,6 +161,33 @@
     //     this.payout = payout;
     // }
     //}
+// package com.adtech.reportingsystem.dto;
+
+// import lombok.AllArgsConstructor;
+// import lombok.Data;
+// import lombok.NoArgsConstructor;
+
+// import java.time.LocalDate;
+
+// @Data // This generates the getters and setters
+// @NoArgsConstructor
+// @AllArgsConstructor
+// public class AdReportDto {
+//     private Long id;
+//     private String mobileAppName;
+//     private String inventoryFormatName;
+//     private String operatingSystemVersionName;
+//     private LocalDate date;
+//     private Long totalRequests; // This field generates setTotalRequests()
+//     private Long impressions;   // This field generates setImpressions()
+//     private Long clicks;        // This field generates setClicks()
+//     private Double payout;
+//     private Double averageEcpm;
+//     private Double matchRate; // This field generates setMatchRate()
+
+//     // No need to manually add getters/setters if @Data is present
+// }
+
 package com.adtech.reportingsystem.dto;
 
 import lombok.AllArgsConstructor;
@@ -169,21 +196,27 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
-@Data // This generates the getters and setters
+@Data // This generates getters, setters, equals, hashCode, and toString
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdReportDto {
     private Long id;
+    private String mobileAppResolvedId; // Matches AdReportData entity
     private String mobileAppName;
+    private String domain;              // Matches AdReportData entity
+    private String adUnitName;
+    private String adUnitId;            // Matches AdReportData entity
     private String inventoryFormatName;
     private String operatingSystemVersionName;
     private LocalDate date;
-    private Long totalRequests; // This field generates setTotalRequests()
-    private Long impressions;   // This field generates setImpressions()
-    private Long clicks;        // This field generates setClicks()
-    private Double payout;
-    private Double averageEcpm;
-    private Double matchRate; // This field generates setMatchRate()
 
-    // No need to manually add getters/setters if @Data is present
+    // Corrected to match AdReportData entity field names
+    private Long adExchangeTotalRequests;
+    private Long adExchangeResponsesServed;
+    private Double adExchangeMatchRate;
+    private Long adExchangeLineItemLevelImpressions;
+    private Long adExchangeLineItemLevelClicks;
+    private Double adExchangeLineItemLevelCtr;
+    private Double averageEcpm;
+    private Double payout;
 }
