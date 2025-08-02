@@ -325,146 +325,276 @@
 //   return response.data;
 // };
 
+// import axios from 'axios';
+//     import { message } from 'antd';
+
+//     // Ensure this baseURL correctly points to your Render backend
+//     // It should be set as an environment variable on Vercel: REACT_APP_API_URL
+//     const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8091/api';
+
+//     const api = axios.create({
+//       baseURL: API_BASE_URL,
+//       timeout: 60000, // 60 seconds timeout
+//     });
+
+//     // --- API Interfaces ---
+//     export interface ReportQueryRequest {
+//       startDate?: string;
+//       endDate?: string;
+//       mobileAppNames?: string[];
+//       inventoryFormatNames?: string[];
+//       operatingSystemVersionNames?: string[];
+//       searchQuery?: string;
+//       groupByDimensions?: string[];
+//       metrics?: string[];
+//       page: number;
+//       size: number;
+//       sortBy?: string;
+//       sortOrder?: 'ASC' | 'DESC';
+//     }
+
+//     export interface AdReportDto {
+//       id: number;
+//       mobileAppName: string;
+//       inventoryFormatName: string;
+//       operatingSystemVersionName: string;
+//       date: string;
+//       totalRequests: number;
+//       impressions: number;
+//       clicks: number;
+//       payout: number;
+//       averageEcpm: number;
+//       matchRate: number;
+//     }
+
+//     // --- API Functions ---
+//     export const getDimensions = async (): Promise<string[]> => {
+//       const response = await api.get<string[]>('/reports/dimensions');
+//       return response.data;
+//     };
+
+//     export const getMetrics = async (): Promise<string[]> => {
+//       const response = await api.get<string[]>('/reports/metrics');
+//       return response.data;
+//     };
+
+//     export const queryReport = async (
+//       query: ReportQueryRequest
+//     ): Promise<{ content: AdReportDto[]; totalElements: number }> => {
+//       const response = await api.post<{ content: AdReportDto[]; totalElements: number }>('/reports/query', query);
+//       return response.data;
+//     };
+
+//     export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
+//       const response = await api.post<any[]>('/reports/aggregate', query);
+//       return response.data;
+//     };
+
+//     export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
+//       try {
+//         const response = await api.post('/reports/export', query, {
+//           responseType: 'blob',
+//         });
+
+//         const url = window.URL.createObjectURL(new Blob([response.data]));
+//         const link = document.createElement('a');
+//         link.href = url;
+//         link.setAttribute('download', 'ad_report.csv');
+//         document.body.appendChild(link);
+//         link.click();
+//         link.remove();
+//         window.URL.revokeObjectURL(url);
+//         message.success('Report exported successfully!');
+//       } catch (error) {
+//         console.error('Error exporting report:', error);
+//         message.error('Failed to export report. Please try again or contact support.');
+//         throw error;
+//       }
+//     };
+
+//     api.interceptors.response.use(
+//       response => response,
+//       error => {
+//         if (axios.isAxiosError(error)) {
+//           if (error.response) {
+//             console.error('API Error Response:', error.response.data);
+//             console.error('API Error Status:', error.response.status);
+//             throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
+//           } else if (error.request) {
+//             console.error('API Error Request:', error.request);
+//             throw new Error('No response from server. Please check your network connection.');
+//           } else {
+//             console.error('API Error Message:', error.message);
+//             throw new Error(`Request setup error: ${error.message}`);
+//           }
+//         } else {
+//           console.error('API Error (Non-Axios):', error);
+//           throw new Error(`An unexpected error occurred: ${error.message}`);
+//         }
+//       }
+//     );
+
+//     // *** THIS IS THE CRITICAL CHANGE ***
+//     // The endpoint must match your backend's @RequestMapping("/api/reports") + @PostMapping("/upload")
+//     export const uploadCsvData = async (file: File): Promise<string> => {
+//       const formData: FormData = new FormData();
+//       formData.append('file', file);
+
+//       try {
+//         const response = await api.post<string>('/reports/upload', formData, { // Changed from '/data/import'
+//           headers: {
+//             'Content-Type': 'multipart/form-data',
+//           },
+//         });
+//         return response.data;
+//       } catch (error) {
+//         console.error('Error in uploadCsvData:', error);
+//         throw error;
+//       }
+//     };
+
+//     export const getDistinctMobileAppNames = async (): Promise<string[]> => {
+//       const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
+//       return response.data;
+//     };
+
+//     export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
+//       const response = await api.get<string[]>('/reports/distinct-inventory-format-names');
+//       return response.data;
+//     };
+
+//     export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
+//       const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
+//       return response.data;
+//     };
+    
 import axios from 'axios';
-    import { message } from 'antd';
+import { message } from 'antd';
+// CRITICAL FIX: Import types from the dedicated types file
+import { AdReportData, ReportQueryRequest } from '../types/adreport'; // Adjust path if your types folder is different
 
-    // Ensure this baseURL correctly points to your Render backend
-    // It should be set as an environment variable on Vercel: REACT_APP_API_URL
-    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8091/api';
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
+  timeout: 60000,
+});
 
-    const api = axios.create({
-      baseURL: API_BASE_URL,
-      timeout: 60000, // 60 seconds timeout
+// CRITICAL FIX: Re-export the interfaces so other modules can import them from '../api'
+// Using 'export type' is a modern way to re-export types without creating runtime code.
+export type { ReportQueryRequest, AdReportData };
+
+// --- API Functions for Dashboard/Reports ---
+
+export const getDimensions = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/reports/dimensions');
+  return response.data;
+};
+
+export const getMetrics = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/reports/metrics');
+  return response.data;
+};
+
+export const queryReport = async (query: ReportQueryRequest): Promise<{ content: AdReportData[]; totalElements: number; totalPages: number }> => {
+  const adjustedQuery = { ...query, page: query.page - 1 };
+  const response = await api.post<{ content: AdReportData[]; totalElements: number; totalPages: number }>('/reports/query', adjustedQuery);
+  return response.data;
+};
+
+export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
+  const response = await api.post<any[]>('/reports/aggregate', query);
+  return response.data;
+};
+
+export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
+  try {
+    const response = await api.post('/reports/export', query, {
+      responseType: 'blob',
     });
 
-    // --- API Interfaces ---
-    export interface ReportQueryRequest {
-      startDate?: string;
-      endDate?: string;
-      mobileAppNames?: string[];
-      inventoryFormatNames?: string[];
-      operatingSystemVersionNames?: string[];
-      searchQuery?: string;
-      groupByDimensions?: string[];
-      metrics?: string[];
-      page: number;
-      size: number;
-      sortBy?: string;
-      sortOrder?: 'ASC' | 'DESC';
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = 'ad_report.csv';
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1];
+      }
     }
 
-    export interface AdReportDto {
-      id: number;
-      mobileAppName: string;
-      inventoryFormatName: string;
-      operatingSystemVersionName: string;
-      date: string;
-      totalRequests: number;
-      impressions: number;
-      clicks: number;
-      payout: number;
-      averageEcpm: number;
-      matchRate: number;
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    message.success('Report exported successfully!');
+  } catch (error: any) {
+    console.error('Error exporting report:', error);
+    message.error(error.response?.data || 'Failed to export report.');
+    throw error;
+  }
+};
+
+export const getDistinctMobileAppNames = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/reports/distinct-mobile-apps');
+  return response.data;
+};
+
+export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/reports/distinct-inventory-formats');
+  return response.data;
+};
+
+export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
+  const response = await api.get<string[]>('/reports/distinct-os-versions');
+  return response.data;
+};
+
+
+api.interceptors.request.use(
+  config => {
+    console.log('Request URL:', config.url);
+    console.log('Request Method:', config.method);
+    console.log('Request Data:', config.data);
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  response => {
+    console.log('Response Status:', response.status);
+    console.log('Response Data:', response.data);
+    return response;
+  },
+  error => {
+    if (error.response) {
+      console.error('API Error Response:', error.response.data);
+      console.error('API Error Status:', error.response.status);
+      console.error('API Error Headers:', error.response.headers);
+      throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
+    } else if (error.request) {
+      console.error('API Error Request:', error.request);
+      throw new Error('No response from server. Please check your network connection.');
+    } else {
+      console.error('API Error Message:', error.message);
+      throw new Error(`Request setup error: ${error.message}`);
     }
+  }
+);
 
-    // --- API Functions ---
-    export const getDimensions = async (): Promise<string[]> => {
-      const response = await api.get<string[]>('/reports/dimensions');
-      return response.data;
-    };
+export const uploadCsvData = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
 
-    export const getMetrics = async (): Promise<string[]> => {
-      const response = await api.get<string[]>('/reports/metrics');
-      return response.data;
-    };
-
-    export const queryReport = async (
-      query: ReportQueryRequest
-    ): Promise<{ content: AdReportDto[]; totalElements: number }> => {
-      const response = await api.post<{ content: AdReportDto[]; totalElements: number }>('/reports/query', query);
-      return response.data;
-    };
-
-    export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
-      const response = await api.post<any[]>('/reports/aggregate', query);
-      return response.data;
-    };
-
-    export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
-      try {
-        const response = await api.post('/reports/export', query, {
-          responseType: 'blob',
-        });
-
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', 'ad_report.csv');
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        window.URL.revokeObjectURL(url);
-        message.success('Report exported successfully!');
-      } catch (error) {
-        console.error('Error exporting report:', error);
-        message.error('Failed to export report. Please try again or contact support.');
-        throw error;
-      }
-    };
-
-    api.interceptors.response.use(
-      response => response,
-      error => {
-        if (axios.isAxiosError(error)) {
-          if (error.response) {
-            console.error('API Error Response:', error.response.data);
-            console.error('API Error Status:', error.response.status);
-            throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
-          } else if (error.request) {
-            console.error('API Error Request:', error.request);
-            throw new Error('No response from server. Please check your network connection.');
-          } else {
-            console.error('API Error Message:', error.message);
-            throw new Error(`Request setup error: ${error.message}`);
-          }
-        } else {
-          console.error('API Error (Non-Axios):', error);
-          throw new Error(`An unexpected error occurred: ${error.message}`);
-        }
-      }
-    );
-
-    // *** THIS IS THE CRITICAL CHANGE ***
-    // The endpoint must match your backend's @RequestMapping("/api/reports") + @PostMapping("/upload")
-    export const uploadCsvData = async (file: File): Promise<string> => {
-      const formData: FormData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const response = await api.post<string>('/reports/upload', formData, { // Changed from '/data/import'
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
-        return response.data;
-      } catch (error) {
-        console.error('Error in uploadCsvData:', error);
-        throw error;
-      }
-    };
-
-    export const getDistinctMobileAppNames = async (): Promise<string[]> => {
-      const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
-      return response.data;
-    };
-
-    export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
-      const response = await api.get<string[]>('/reports/distinct-inventory-format-names');
-      return response.data;
-    };
-
-    export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
-      const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
-      return response.data;
-    };
-    
+  try {
+    const response = await api.post<string>('/data/import', formData);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error in uploadCsvData:', error);
+    throw error;
+  }
+};
