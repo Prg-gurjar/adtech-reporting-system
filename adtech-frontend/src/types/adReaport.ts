@@ -17,6 +17,8 @@
 //   average_ecpm: number;
 //   payout: number;
 // }
+// src/types/adreport.ts
+
 export interface AdReportData {
   id: number;
   mobileAppResolvedId: string;
@@ -26,7 +28,7 @@ export interface AdReportData {
   adUnitId: string;
   inventoryFormatName: string;
   operatingSystemVersionName: string;
-  date: string; // Using string to match backend's YYYY-MM-DD format
+  date: string;
   adExchangeTotalRequests: number;
   adExchangeResponsesServed: number;
   adExchangeMatchRate: number;
@@ -37,20 +39,16 @@ export interface AdReportData {
   payout: number;
 }
 
-/**
- * Interface representing the request payload for querying reports
- * sent from the frontend to the backend.
- */
 export interface ReportQueryRequest {
-  startDate?: string; // YYYY-MM-DD format
-  endDate?: string;   // YYYY-MM-DD format
+  startDate?: string;
+  endDate?: string;
   mobileAppNames?: string[];
   inventoryFormatNames?: string[];
   operatingSystemVersionNames?: string[];
   searchQuery?: string;
   groupByDimensions?: string[];
   metrics?: string[];
-  page: number; // Frontend typically sends 1-indexed page, backend expects 0-indexed
+  page: number;
   size: number;
   sortBy?: string;
   sortOrder?: 'ASC' | 'DESC';
