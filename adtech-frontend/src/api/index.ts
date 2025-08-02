@@ -473,14 +473,16 @@ import { message } from 'antd';
 // CRITICAL FIX: Import types from the dedicated types file
 import { AdReportData, ReportQueryRequest } from '../types/adreport'; // Adjust path if your types folder is different
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8091/api';
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
+  baseURL: API_BASE_URL,
   timeout: 60000,
 });
 
 // CRITICAL FIX: Re-export the interfaces so other modules can import them from '../api'
 // Using 'export type' is a modern way to re-export types without creating runtime code.
-export type { ReportQueryRequest, AdReportData };
+export type { ReportQueryRequest, AdReportData }; // <--- THIS IS THE KEY LINE
 
 // --- API Functions for Dashboard/Reports ---
 
@@ -537,17 +539,17 @@ export const exportReport = async (query: ReportQueryRequest): Promise<void> => 
 };
 
 export const getDistinctMobileAppNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-mobile-apps');
+  const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
   return response.data;
 };
 
 export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-inventory-formats');
+  const response = await api.get<string[]>('/reports/distinct-inventory-format-names');
   return response.data;
 };
 
 export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-os-versions');
+  const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
   return response.data;
 };
 
@@ -591,7 +593,7 @@ export const uploadCsvData = async (file: File): Promise<string> => {
   formData.append('file', file);
 
   try {
-    const response = await api.post<string>('/data/import', formData);
+    const response = await api.post<string>('/reports/upload', formData); // Corrected endpoint
     return response.data;
   } catch (error: any) {
     console.error('Error in uploadCsvData:', error);
