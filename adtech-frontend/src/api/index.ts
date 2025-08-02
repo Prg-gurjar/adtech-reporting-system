@@ -602,7 +602,7 @@ export const uploadCsvData = async (file: File): Promise<string> => {
   formData.append('file', file);
 
   try {
-    const response = await api.post<string>('/data/import', formData, {
+    const response = await api.post<string>('/reports/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
