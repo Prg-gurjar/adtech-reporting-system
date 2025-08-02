@@ -641,6 +641,7 @@
 //         }
 //     }
 // }
+
 package com.adtech.reportingsystem.service;
 
 import com.adtech.reportingsystem.model.AdReportData;
@@ -654,6 +655,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async; // Import for @Async
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Import for @Transactional
+import org.springframework.web.multipart.MultipartFile; // <--- ADDED THIS IMPORT
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -888,3 +890,4 @@ public class CsvImportService {
         }
     }
 }
+
