@@ -467,24 +467,23 @@
 //       const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
 //       return response.data;
 //     };
-    
 import axios from 'axios';
 import { message } from 'antd';
-// CRITICAL FIX: Import types from the dedicated types file
-import { AdReportData, ReportQueryRequest } from '../types/adreport'; // Adjust path if your types folder is different
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8091/api';
+// CRITICAL FIX: Import types from the dedicated types file (assuming path src/types/adreport.ts)
+import { AdReportData, ReportQueryRequest } from './types/adreport'; // Adjust path if your types folder is different
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
   timeout: 60000,
 });
 
-// CRITICAL FIX: Re-export the interfaces so other modules can import them from '../api'
-// Using 'export type' is a modern way to re-export types without creating runtime code.
-export type { ReportQueryRequest, AdReportData }; // <--- THIS IS THE KEY LINE
+// *** THIS IS THE CRITICAL LINE ***
+// Re-export the interfaces so other modules can import them from '../api'
+export type { ReportQueryRequest, AdReportData }; // <--- ENSURE THIS LINE IS PRESENT AND CORRECT
 
 // --- API Functions for Dashboard/Reports ---
+
+// ... (rest of your axios-index.ts content, including all your export const functions)
 
 export const getDimensions = async (): Promise<string[]> => {
   const response = await api.get<string[]>('/reports/dimensions');
@@ -539,17 +538,17 @@ export const exportReport = async (query: ReportQueryRequest): Promise<void> => 
 };
 
 export const getDistinctMobileAppNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
+  const response = await api.get<string[]>('/reports/distinct-mobile-apps');
   return response.data;
 };
 
 export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-inventory-format-names');
+  const response = await api.get<string[]>('/reports/distinct-inventory-formats');
   return response.data;
 };
 
 export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
+  const response = await api.get<string[]>('/reports/distinct-os-versions');
   return response.data;
 };
 
@@ -573,17 +572,22 @@ api.interceptors.response.use(
     return response;
   },
   error => {
-    if (error.response) {
-      console.error('API Error Response:', error.response.data);
-      console.error('API Error Status:', error.response.status);
-      console.error('API Error Headers:', error.response.headers);
-      throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
-    } else if (error.request) {
-      console.error('API Error Request:', error.request);
-      throw new Error('No response from server. Please check your network connection.');
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        console.error('API Error Response:', error.response.data);
+        console.error('API Error Status:', error.response.status);
+        console.error('API Error Headers:', error.response.headers);
+        throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
+      } else if (error.request) {
+        console.error('API Error Request:', error.request);
+        throw new Error('No response from server. Please check your network connection.');
+      } else {
+        console.error('API Error Message:', error.message);
+        throw new Error(`Request setup error: ${error.message}`);
+      }
     } else {
-      console.error('API Error Message:', error.message);
-      throw new Error(`Request setup error: ${error.message}`);
+      console.error('API Error (Non-Axios):', error);
+      throw new Error(`An unexpected error occurred: ${error.message}`);
     }
   }
 );
@@ -593,7 +597,7 @@ export const uploadCsvData = async (file: File): Promise<string> => {
   formData.append('file', file);
 
   try {
-    const response = await api.post<string>('/reports/upload', formData); // Corrected endpoint
+    const response = await api.post<string>('/data/import', formData);
     return response.data;
   } catch (error: any) {
     console.error('Error in uploadCsvData:', error);
