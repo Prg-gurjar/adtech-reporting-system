@@ -469,138 +469,165 @@
 //     };
 import axios from 'axios';
 import { message } from 'antd';
-// CRITICAL FIX: Import types from the dedicated types file (assuming path src/types/adreport.ts)
-import { AdReportData, ReportQueryRequest } from './types/adreport'; // Adjust path if your types folder is different
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
-  timeout: 60000,
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8091/api',
+  timeout: 60000, // 60 seconds timeout
 });
 
-// *** THIS IS THE CRITICAL LINE ***
-// Re-export the interfaces so other modules can import them from '../api'
-export type { ReportQueryRequest, AdReportData }; // <--- ENSURE THIS LINE IS PRESENT AND CORRECT
+// --- API Interfaces ---
+export interface ReportQueryRequest {
+  startDate?: string;
+  endDate?: string;
+  mobileAppNames?: string[];
+  inventoryFormatNames?: string[];
+  operatingSystemVersionNames?: string[];
+  searchQuery?: string;
+  groupByDimensions?: string[];
+  metrics?: string[];
+  page: number;
+  size: number;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
 
-// --- API Functions for Dashboard/Reports ---
+export interface AdReportData {
+  id: number;
+  mobileAppResolvedId: string;
+  mobileAppName: string;
+  domain: string;
+  adUnitName: string;
+  adUnitId: string;
+  inventoryFormatName: string;
+  operatingSystemVersionName: string;
+  date: string;
+  adExchangeTotalRequests: number;
+  adExchangeResponsesServed: number;
+  adExchangeMatchRate: number;
+  adExchangeLineItemLevelImpressions: number;
+  adExchangeLineItemLevelClicks: number;
+  adExchangeLineItemLevelCtr: number;
+  averageEcpm: number;
+  payout: number;
+}
 
-// ... (rest of your axios-index.ts content, including all your export const functions)
+// NOTE: It's good practice to define a more specific type for aggregated data
+// as it may have different fields or formats than the raw data.
+// export interface AggregatedReportData {
+//   dimension1: string;
+//   dimension2: string;
+//   sumOfMetric1: number;
+//   ...
+// }
 
+// --- API Functions ---
 export const getDimensions = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/dimensions');
-  return response.data;
+  const response = await api.get<string[]>('/reports/dimensions');
+  return response.data;
 };
 
 export const getMetrics = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/metrics');
-  return response.data;
+  const response = await api.get<string[]>('/reports/metrics');
+  return response.data;
 };
 
-export const queryReport = async (query: ReportQueryRequest): Promise<{ content: AdReportData[]; totalElements: number; totalPages: number }> => {
-  const adjustedQuery = { ...query, page: query.page - 1 };
-  const response = await api.post<{ content: AdReportData[]; totalElements: number; totalPages: number }>('/reports/query', adjustedQuery);
-  return response.data;
+export const queryReport = async (
+  query: ReportQueryRequest
+): Promise<{ content: AdReportData[]; totalElements: number }> => {
+  const response = await api.post<{ content: AdReportData[]; totalElements: number }>('/reports/query', query);
+  return response.data;
 };
 
 export const aggregateReport = async (query: ReportQueryRequest): Promise<any[]> => {
-  const response = await api.post<any[]>('/reports/aggregate', query);
-  return response.data;
+  const response = await api.post<any[]>('/reports/aggregate', query);
+  return response.data;
 };
 
 export const exportReport = async (query: ReportQueryRequest): Promise<void> => {
-  try {
-    const response = await api.post('/reports/export', query, {
-      responseType: 'blob',
-    });
+  try {
+    const response = await api.post('/reports/export', query, {
+      responseType: 'blob',
+    });
 
-    const contentDisposition = response.headers['content-disposition'];
-    let filename = 'ad_report.csv';
-    if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-      if (filenameMatch && filenameMatch[1]) {
-        filename = filenameMatch[1];
-      }
-    }
-
-    const url = window.URL.createObjectURL(new Blob([response.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(url);
-    message.success('Report exported successfully!');
-  } catch (error: any) {
-    console.error('Error exporting report:', error);
-    message.error(error.response?.data || 'Failed to export report.');
-    throw error;
-  }
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'ad_report.csv');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    message.success('Report exported successfully!');
+  } catch (error) {
+    console.error('Error exporting report:', error);
+    // NOTE: When responseType is 'blob', error.response?.data is a blob,
+    // so we can't read `data.message`. A generic message is safer.
+    message.error('Failed to export report. Please try again or contact support.');
+    throw error;
+  }
 };
 
+// Add a single, comprehensive response interceptor for global error handling
+// NOTE: I've removed the duplicate interceptor from your original code.
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (axios.isAxiosError(error)) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('API Error Response:', error.response.data);
+        console.error('API Error Status:', error.response.status);
+        throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('API Error Request:', error.request);
+        throw new Error('No response from server. Please check your network connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('API Error Message:', error.message);
+        throw new Error(`Request setup error: ${error.message}`);
+      }
+    } else {
+      // Non-axios error
+      console.error('API Error (Non-Axios):', error);
+      throw new Error(`An unexpected error occurred: ${error.message}`);
+    }
+  }
+);
+
+
+// --- CSV Upload ---
+export const uploadCsvData = async (file: File): Promise<string> => {
+  const formData: FormData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await api.post<string>('/data/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error in uploadCsvData:', error);
+    throw error;
+  }
+};
+
+// NEW API FUNCTIONS to fetch distinct values for filters
 export const getDistinctMobileAppNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-mobile-apps');
+  const response = await api.get<string[]>('/reports/distinct-mobile-app-names');
   return response.data;
 };
 
 export const getDistinctInventoryFormatNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-inventory-formats');
+  const response = await api.get<string[]>('/reports/distinct-inventory-format-names');
   return response.data;
 };
 
 export const getDistinctOperatingSystemVersionNames = async (): Promise<string[]> => {
-  const response = await api.get<string[]>('/reports/distinct-os-versions');
+  const response = await api.get<string[]>('/reports/distinct-operating-system-version-names');
   return response.data;
 };
 
-
-api.interceptors.request.use(
-  config => {
-    console.log('Request URL:', config.url);
-    console.log('Request Method:', config.method);
-    console.log('Request Data:', config.data);
-    return config;
-  },
-  error => {
-    return Promise.reject(error);
-  }
-);
-
-api.interceptors.response.use(
-  response => {
-    console.log('Response Status:', response.status);
-    console.log('Response Data:', response.data);
-    return response;
-  },
-  error => {
-    if (axios.isAxiosError(error)) {
-      if (error.response) {
-        console.error('API Error Response:', error.response.data);
-        console.error('API Error Status:', error.response.status);
-        console.error('API Error Headers:', error.response.headers);
-        throw new Error(error.response.data.message || `Server Error: ${error.response.status}`);
-      } else if (error.request) {
-        console.error('API Error Request:', error.request);
-        throw new Error('No response from server. Please check your network connection.');
-      } else {
-        console.error('API Error Message:', error.message);
-        throw new Error(`Request setup error: ${error.message}`);
-      }
-    } else {
-      console.error('API Error (Non-Axios):', error);
-      throw new Error(`An unexpected error occurred: ${error.message}`);
-    }
-  }
-);
-
-export const uploadCsvData = async (file: File): Promise<string> => {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  try {
-    const response = await api.post<string>('/data/import', formData);
-    return response.data;
-  } catch (error: any) {
-    console.error('Error in uploadCsvData:', error);
-    throw error;
-  }
-};
